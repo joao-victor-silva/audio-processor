@@ -1,0 +1,7 @@
+pkgs
+builtins
+codespell
+gitlint
+golangci
+gopls
+LDFLAGS

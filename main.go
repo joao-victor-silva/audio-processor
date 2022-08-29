@@ -22,6 +22,5 @@ func main() {
 		fmt.Println("Device", i, ":", deviceName)
 	}
 
-
 	C.SDL_Quit()
 }
