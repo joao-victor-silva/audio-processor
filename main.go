@@ -30,7 +30,7 @@ func main() {
 	var isCapture bool
 	flag.BoolVar(&isCapture, "input", true, "Set device type to input")
 	toCInt := map[bool]C.int {
-		true: C.int(0),
+		true: C.int(1),
 		false: C.int(0),
 	}
 
@@ -65,4 +65,18 @@ func main() {
 	}
 
 	defer C.SDL_CloseAudioDevice(deviceId)
+
+	
+	dataWanted := 2048
+	data := make([]byte, dataWanted)
+	dataPointer := C.CBytes(data)
+
+	C.SDL_PauseAudioDevice(deviceId, toCInt[false]);
+	dataSize := C.SDL_DequeueAudio(deviceId, dataPointer, C.Uint32(dataWanted))
+	C.SDL_PauseAudioDevice(deviceId, toCInt[false]);
+
+	if dataSize == 0 {
+		panic("Counldn't retrieve data from device")
+	}
+	fmt.Println("Got", dataSize, "bytes.")
 }

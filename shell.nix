@@ -14,6 +14,6 @@ pkgs.mkShell {
   shellHook = ''
   '';
 
-  DIAGNOSTICS = "golangci_lint:gitlint:cspell:codespell";
+  DIAGNOSTICS = "golangci_lint:gitlint:codespell";
   FORMATTING = "";
 }
