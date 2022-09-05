@@ -1,8 +1,14 @@
 package main
 
 // #cgo LDFLAGS: -lSDL2
-// #include <SDL2/SDL.h>
-// #include <SDL2/SDL_audio.h>
+/*
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_audio.h>
+extern void fillBuffer(void *userdata, Uint8 * stream, int len);
+static SDL_AudioCallback get_fn_ptr() {
+    return fillBuffer;
+}
+*/
 import "C"
 import (
 	"flag"
@@ -28,7 +34,7 @@ func main() {
 	}()
 
 	var isCapture bool
-	flag.BoolVar(&isCapture, "input", true, "Set device type to input")
+	flag.BoolVar(&isCapture, "input", false, "Set device type to input")
 	toCInt := map[bool]C.int {
 		true: C.int(1),
 		false: C.int(0),
@@ -46,10 +52,9 @@ func main() {
 		panic("No input devices found")
 	}
 
-	deviceName := C.SDL_GetAudioDeviceName(0, toCInt[isCapture])
+	deviceName := C.SDL_GetAudioDeviceName(1, toCInt[isCapture])
 	var desired, obtained C.SDL_AudioSpec
 	var desiredPointer = unsafe.Pointer(&desired)
-	// var obtainedPointer = unsafe.Pointer(&obtained)
 
 	C.SDL_memset(desiredPointer, 0, C.sizeof_SDL_AudioSpec)
 
@@ -57,26 +62,47 @@ func main() {
 	desired.format = C.AUDIO_F32
 	desired.channels = 1
 	desired.samples = 2048
+	// desired.callback = C.get_fn_ptr()
 
 	deviceId := C.SDL_OpenAudioDevice(deviceName, toCInt[isCapture], &desired, &obtained, C.SDL_AUDIO_ALLOW_ANY_CHANGE)
 
 	if deviceId == 0 {
 		panic("Counldn't open device")
 	}
-
 	defer C.SDL_CloseAudioDevice(deviceId)
 
-	
-	dataWanted := 2048
-	data := make([]byte, dataWanted)
-	dataPointer := C.CBytes(data)
+	C.SDL_PauseAudioDevice(deviceId, toCInt[false])
 
-	C.SDL_PauseAudioDevice(deviceId, toCInt[false]);
-	dataSize := C.SDL_DequeueAudio(deviceId, dataPointer, C.Uint32(dataWanted))
-	C.SDL_PauseAudioDevice(deviceId, toCInt[false]);
+	if isCapture {
+		dataWanted := 96000 * 4
+		data := make([]byte, dataWanted)
+		dataPointer := C.CBytes(data)
 
-	if dataSize == 0 {
-		panic("Counldn't retrieve data from device")
+		C.SDL_Delay(2020)
+		dataSize := C.SDL_DequeueAudio(deviceId, dataPointer, C.Uint32(dataWanted))
+
+		if dataSize == 0 {
+			panic("Counldn't retrieve data from device")
+		}
+		fmt.Println("Got", dataSize, "bytes.")
+
+		err := os.WriteFile("data.bin", C.GoBytes(dataPointer, C.int(dataWanted)), 0644)
+		if err != nil {
+			panic("Couldn't write file")
+		}
+
+	} else {
+		data, err := os.ReadFile("data.bin")
+		if err != nil {
+			panic("Couldn't read file")
+		}
+
+		C.SDL_QueueAudio(deviceId, C.CBytes(data), C.Uint32(len(data)))
+		C.SDL_Delay(2020)
 	}
-	fmt.Println("Got", dataSize, "bytes.")
+}
+
+//export fillBuffer
+func fillBuffer(userdata unsafe.Pointer, stream *C.Uint8, length C.int) {
+
 }
