@@ -76,7 +76,7 @@ func main() {
 	if isCapture {
 		dataWanted := 96000 * 4
 		data := make([]byte, dataWanted)
-		dataPointer := C.CBytes(data)
+		dataPointer := unsafe.Pointer(&data[0])
 
 		C.SDL_Delay(2020)
 		dataSize := C.SDL_DequeueAudio(deviceId, dataPointer, C.Uint32(dataWanted))
@@ -86,7 +86,7 @@ func main() {
 		}
 		fmt.Println("Got", dataSize, "bytes.")
 
-		err := os.WriteFile("data.bin", C.GoBytes(dataPointer, C.int(dataWanted)), 0644)
+		err := os.WriteFile("data.bin", data, 0644)
 		if err != nil {
 			panic("Couldn't write file")
 		}
