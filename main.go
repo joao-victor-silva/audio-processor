@@ -19,12 +19,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 	"unsafe"
 )
 
 type UserData struct {
 	data []byte
 	pos  int
+	recording chan []byte
+	playback chan byte
 }
 
 func main() {
@@ -78,6 +81,8 @@ func main() {
 
 	var userdata UserData
 	userdata.data = make([]byte, dataWanted)
+	userdata.recording = make(chan []byte, 10)
+	userdata.playback = make(chan byte, 2048 * 4)
 	userdata.pos = 0
 	dataPointer := (uintptr)(unsafe.Pointer(&userdata)) ^ 0xFFFFFFFF
 
@@ -103,57 +108,28 @@ func main() {
 
 	if isCapture {
 		C.SDL_PauseAudioDevice(deviceId, toCInt[false])
-		C.SDL_Delay(2020)
-		err := os.WriteFile("data.bin", userdata.data, 0644)
+
+		f, err := os.OpenFile("data.bin", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
 			panic("Couldn't write file")
+		}
+		defer f.Close()
+
+		for now := time.Now(); time.Since(now) < 2 * time.Second; {
+			data := <- userdata.recording
+			if _, err := f.Write(data); err != nil {
+				panic("Couldn't write data in file")
+			}
 		}
 	} else {
 		dataFromFile, err := os.ReadFile("data.bin")
 		if err != nil {
 			panic("Couldn't read file")
 		}
-		copy(userdata.data, dataFromFile)
 		C.SDL_PauseAudioDevice(deviceId, toCInt[false])
-		C.SDL_Delay(2020)
-
+		for i := 0; i < len(dataFromFile); i++ {
+			userdata.playback <- dataFromFile[i]
+		}
 	}
 	C.SDL_PauseAudioDevice(deviceId, toCInt[true])
-}
-
-//export fillBuffer
-func fillBuffer(userdata unsafe.Pointer, stream *C.Uint8, length C.int) {
-	userdata = unsafe.Pointer(uintptr(userdata) ^ 0xFFFFFFFF)
-	userdataPointer := (*UserData)(userdata)
-
-	var size int
-	size = len(userdataPointer.data) - userdataPointer.pos
-
-	if size >= int(length) {
-		copy(userdataPointer.data[userdataPointer.pos:], C.GoBytes(unsafe.Pointer(stream), length))
-		userdataPointer.pos += int(length)
-	} else {
-		copy(userdataPointer.data[userdataPointer.pos:], C.GoBytes(unsafe.Pointer(stream), C.int (size)))
-		userdataPointer.pos = len(userdataPointer.data)
-	}
-}
-
-//export readBuffer
-func readBuffer(userdata unsafe.Pointer, stream *C.Uint8, length C.int) {
-	userdata = unsafe.Pointer(uintptr(userdata) ^ 0xFFFFFFFF)
-	userdataPointer := (*UserData)(userdata)
-
-	var size int
-	size = len(userdataPointer.data) - userdataPointer.pos
-
-	if size >= int(length) {
-		C.memcpy(unsafe.Pointer(stream), unsafe.Pointer(&userdataPointer.data[userdataPointer.pos]), C.ulong(length))
-		userdataPointer.pos += int(length)
-	} else if size != 0 {
-		C.memcpy(unsafe.Pointer(stream), unsafe.Pointer(&userdataPointer.data[userdataPointer.pos]), C.ulong(size))
-		userdataPointer.pos = len(userdataPointer.data)
-		C.memset(unsafe.Pointer((uintptr(unsafe.Pointer(stream)))+uintptr(size)), 0x00, C.ulong(int(length)-size))
-	} else {
-		C.memset(unsafe.Pointer(stream), 0x00, C.ulong(length))
-	}
 }
