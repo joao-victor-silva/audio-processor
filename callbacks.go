@@ -16,7 +16,7 @@ func fillBuffer(userdata unsafe.Pointer, stream *C.Uint8, length C.int) {
 	data := C.GoBytes(unsafe.Pointer(stream), length)
 	for _, b := range data {
 		select {
-			case userdataPointer.playback <- b:
+			case userdataPointer.record <- b:
 			default:
 		}
 	}
