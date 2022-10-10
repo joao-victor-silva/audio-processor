@@ -17,11 +17,11 @@ static SDL_AudioCallback get_fn_readptr() {
 import "C"
 import (
 	"encoding/binary"
-	"fmt"
 	"math"
 	"os"
 	"os/signal"
 	"unsafe"
+	"github.com/joao-victor-silva/audio-processor/audio"
 )
 
 type UserData struct {
@@ -32,7 +32,6 @@ type UserData struct {
 
 type ProcessData interface {
 	Process(input <- chan byte, output chan <- byte, dataType C.SDL_AudioFormat)
-
 }
 
 type Copy struct {}
@@ -44,20 +43,11 @@ func main() {
 		false: C.int(0),
 	}
 
-	ret := C.SDL_Init(C.SDL_INIT_AUDIO)
-	if ret < 0 {
-		_ = fmt.Errorf("Error")
-		os.Exit(1)
+	sdlManager, err := audio.NewSDL()
+	if err != nil {
+		panic(err)
 	}
-	defer C.SDL_Quit()
-	defer func() {
-		err := C.GoString(C.SDL_GetError())
-		if err != "" {
-			fmt.Println("SDL error: ", err)
-		} else {
-			fmt.Println("Exiting without errors")
-		}
-	}()
+	defer sdlManager.Close()
 
 	var userdata UserData
 	userdata.record = make(chan byte, 1024 * 4)
