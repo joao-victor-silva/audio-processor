@@ -52,9 +52,9 @@ type AudioDevice interface {
 }
 
 type UserData struct {
-	Record chan byte
-	Process chan byte
-	Playback chan byte
+	Record chan float32
+	Process chan float32
+	Playback chan float32
 }
 
 func (self *sdl) NewAudioDevice(isCapture bool, userdata *UserData) (AudioDevice, error) {

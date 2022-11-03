@@ -8,8 +8,6 @@ package main
 */
 import "C"
 import (
-	"encoding/binary"
-	"math"
 	"os"
 	"os/signal"
 	"github.com/joao-victor-silva/audio-processor/audio"
@@ -31,9 +29,9 @@ func main() {
 	defer sdlManager.Close()
 
 	var userdata audio.UserData
-	userdata.Record = make(chan byte, 1024 * 4)
-	userdata.Process = make(chan byte, 1024 * 4)
-	userdata.Playback = make(chan byte, 1024 * 4)
+	userdata.Record = make(chan float32, 1024)
+	userdata.Process = make(chan float32, 1024)
+	userdata.Playback = make(chan float32, 1024)
 
 	defer close (userdata.Record)
 
@@ -67,7 +65,7 @@ func main() {
 	_ = <- mainThreadSignals
 }
 
-func (*Copy) Process(input <- chan byte, output chan <- byte, audioFormat C.SDL_AudioFormat) {
+func (*Copy) Process(input <- chan float32, output chan <- float32, audioFormat C.SDL_AudioFormat) {
 	for data := range input {
 		output <- data
 	}
