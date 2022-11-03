@@ -28,20 +28,13 @@ func main() {
 	}
 	defer sdlManager.Close()
 
-	var userdata audio.UserData
-	userdata.Record = make(chan float32, 1024)
-	userdata.Process = make(chan float32, 1024)
-	userdata.Playback = make(chan float32, 1024)
-
-	defer close (userdata.Record)
-
-	mic, err := sdlManager.NewAudioDevice(true, &userdata)
+	mic, err := sdlManager.NewAudioDevice(true)
 	if err != nil {
 		panic("Counldn't open the mic device. " + err.Error())
 	}
 	defer mic.Close()
 
-	headphone, err := sdlManager.NewAudioDevice(false, &userdata)
+	headphone, err := sdlManager.NewAudioDevice(false)
 	if err != nil {
 		panic("Counldn't open the headphone device" + err.Error())
 	}
@@ -56,41 +49,41 @@ func main() {
 	headphone.Unpause()
 
 	copyFromRecord := Copy{}
-	copyToPlayback := Copy{}
-	go copyFromRecord.Process(userdata.Record, userdata.Process, (C.SDL_AudioFormat) (mic.AudioFormat()))
-	go copyToPlayback.Process(userdata.Process, userdata.Playback, (C.SDL_AudioFormat) (headphone.AudioFormat()))
+	// copyToPlayback := Copy{}
+	go copyFromRecord.Process(mic, headphone, (C.SDL_AudioFormat) (mic.AudioFormat()))
+	// go copyToPlayback.Process(userdata.Process, userdata.Playback, (C.SDL_AudioFormat) (headphone.AudioFormat()))
 
 	mainThreadSignals := make(chan os.Signal, 1)
 	signal.Notify(mainThreadSignals, os.Interrupt)
 	_ = <- mainThreadSignals
 }
 
-func (*Copy) Process(input <- chan float32, output chan <- float32, audioFormat C.SDL_AudioFormat) {
-	for data := range input {
-		output <- data
+func (*Copy) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice, audioFormat C.SDL_AudioFormat) {
+	for {
+		outputDevice.WriteData(inputDevice.ReadData(true))
 	}
 }
 
-func (*Effect) Process(input <- chan byte, output chan <- byte, audioFormat C.SDL_AudioFormat) {
-	for true {
-		if audioFormat == C.AUDIO_F32 {
-			binaryData := make([]byte, 4)
-			binaryData[0] = <- input
-			binaryData[1] = <- input
-			binaryData[2] = <- input
-			binaryData[3] = <- input
-
-			buffer := math.Float32frombits(binary.LittleEndian.Uint32(binaryData))
-			buffer = buffer / 100
-			binary.LittleEndian.PutUint32(binaryData, math.Float32bits(buffer))
-
-			output <- binaryData[0]
-			output <- binaryData[1]
-			output <- binaryData[2]
-			output <- binaryData[3]
-		}
-	}
-
-	// for data := range input {
-	// }
-}
+// func (*Effect) Process(input <- chan byte, output chan <- byte, audioFormat C.SDL_AudioFormat) {
+// 	for true {
+// 		if audioFormat == C.AUDIO_F32 {
+// 			binaryData := make([]byte, 4)
+// 			binaryData[0] = <- input
+// 			binaryData[1] = <- input
+// 			binaryData[2] = <- input
+// 			binaryData[3] = <- input
+//
+// 			buffer := math.Float32frombits(binary.LittleEndian.Uint32(binaryData))
+// 			buffer = buffer / 100
+// 			binary.LittleEndian.PutUint32(binaryData, math.Float32bits(buffer))
+//
+// 			output <- binaryData[0]
+// 			output <- binaryData[1]
+// 			output <- binaryData[2]
+// 			output <- binaryData[3]
+// 		}
+// 	}
+//
+// 	// for data := range input {
+// 	// }
+// }

@@ -32,7 +32,7 @@ type sdl struct {
 
 type SDL interface {
 	Close() error
-	NewAudioDevice(bool, *UserData) (AudioDevice, error)
+	NewAudioDevice(bool) (AudioDevice, error)
 }
 
 type audioDevice struct {
@@ -40,6 +40,7 @@ type audioDevice struct {
 	paused bool
 	audioFormat C.SDL_AudioFormat
 	isCapture bool
+	dataChannel chan float32
 }
 
 type AudioDevice interface {
@@ -49,15 +50,11 @@ type AudioDevice interface {
 	TogglePause()
 	Close()
 	AudioFormat() C.SDL_AudioFormat
+	ReadData(bool) float32
+	WriteData(float32)
 }
 
-type UserData struct {
-	Record chan float32
-	Process chan float32
-	Playback chan float32
-}
-
-func (self *sdl) NewAudioDevice(isCapture bool, userdata *UserData) (AudioDevice, error) {
+func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
 	if !self.initialized {
 		err := fmt.Errorf("SDL isn't initialized")
 		return nil, err
@@ -65,6 +62,7 @@ func (self *sdl) NewAudioDevice(isCapture bool, userdata *UserData) (AudioDevice
 
 	device := audioDevice{}
 	device.isCapture = isCapture
+	device.dataChannel = make(chan float32, 1024)
 
 	var desired, obtained C.SDL_AudioSpec
 	var desiredPointer = unsafe.Pointer(&desired)
@@ -73,7 +71,9 @@ func (self *sdl) NewAudioDevice(isCapture bool, userdata *UserData) (AudioDevice
 	C.SDL_memset(desiredPointer, 0, C.sizeof_SDL_AudioSpec)
 	C.SDL_memset(obtainedPointer, 0, C.sizeof_SDL_AudioSpec)
 
-	dataPointer := (uintptr)(unsafe.Pointer(userdata)) ^ 0xFFFFFFFF
+	// var data AudioDevice
+	// data = &device
+	dataPointer := (uintptr)(unsafe.Pointer(&device)) ^ 0xFFFFFFFF
 
 	desired.freq = 48000
 	desired.format = C.AUDIO_F32
@@ -138,6 +138,26 @@ func (device *audioDevice) Close() {
 
 func (device *audioDevice) AudioFormat() C.SDL_AudioFormat {
 	return device.audioFormat
+}
+
+func (device *audioDevice) WriteData(data float32) {
+	select {
+		case device.dataChannel <- data:
+		default:
+	}
+}
+
+func (device *audioDevice) ReadData(isBlocking bool) float32 {
+	if isBlocking {
+		return <- device.dataChannel
+	}
+
+	select {
+		case data := <- device.dataChannel:
+			return data
+		default:
+			return 0
+	}
 }
 
 func NewSDL() (SDL, error) {
