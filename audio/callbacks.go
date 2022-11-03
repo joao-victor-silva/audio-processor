@@ -1,10 +1,9 @@
-package main
+package audio
 
 // #cgo LDFLAGS: -lSDL2
 /*
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_audio.h>
-#include <string.h>
 */
 import "C"
 import "unsafe"
@@ -16,7 +15,7 @@ func fillBuffer(userdata unsafe.Pointer, stream *C.Uint8, length C.int) {
 	data := C.GoBytes(unsafe.Pointer(stream), length)
 	for _, b := range data {
 		select {
-			case userdataPointer.record <- b:
+			case userdataPointer.Record <- b:
 			default:
 		}
 	}
@@ -30,7 +29,7 @@ func readBuffer(userdata unsafe.Pointer, stream *C.Uint8, length C.int) {
 	streamSlice := CPoiterToSlice(stream, length)
 	for i := 0; i < int(length); i++ {
 		select {
-		case data := <- userdataPointer.playback:
+		case data := <- userdataPointer.Playback:
 			streamSlice[i] = (C.Uint8) (data)
 		default:
 			streamSlice[i] = 0

@@ -5,14 +5,6 @@ package main
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_audio.h>
 #include <string.h>
-extern void fillBuffer(void *userdata, Uint8 * stream, int len);
-extern void readBuffer(void *userdata, Uint8 * stream, int len);
-static SDL_AudioCallback get_fn_writeptr() {
-    return fillBuffer;
-}
-static SDL_AudioCallback get_fn_readptr() {
-    return readBuffer;
-}
 */
 import "C"
 import (
@@ -20,15 +12,9 @@ import (
 	"math"
 	"os"
 	"os/signal"
-	"unsafe"
 	"github.com/joao-victor-silva/audio-processor/audio"
 )
 
-type UserData struct {
-	record chan byte
-	process chan byte
-	playback chan byte
-}
 
 type ProcessData interface {
 	Process(input <- chan byte, output chan <- byte, dataType C.SDL_AudioFormat)
@@ -38,50 +24,43 @@ type Copy struct {}
 type Effect struct {}
 
 func main() {
-	toCInt := map[bool]C.int{
-		true:  C.int(1),
-		false: C.int(0),
-	}
-
 	sdlManager, err := audio.NewSDL()
 	if err != nil {
 		panic(err)
 	}
 	defer sdlManager.Close()
 
-	var userdata UserData
-	userdata.record = make(chan byte, 1024 * 4)
-	userdata.process = make(chan byte, 1024 * 4)
-	userdata.playback = make(chan byte, 1024 * 4)
+	var userdata audio.UserData
+	userdata.Record = make(chan byte, 1024 * 4)
+	userdata.Process = make(chan byte, 1024 * 4)
+	userdata.Playback = make(chan byte, 1024 * 4)
 
-	defer close (userdata.record)
+	defer close (userdata.Record)
 
-	micId, micAudioFormat := openDevice(true, &userdata)
-	headphoneId, headphoneAudioFormat := openDevice(false, &userdata)
-
-	if micAudioFormat != headphoneAudioFormat {
-		panic("Couldn't use the same audio format for mic and headphones")
-	}
-
-	if micId == 0 {
+	mic, err := audio.NewAudioDevice(true, &userdata)
+	if err != nil {
 		panic("Counldn't open the mic device")
 	}
-	defer C.SDL_CloseAudioDevice(micId)
+	defer mic.Close()
 
-	if headphoneId == 0 {
+	headphone, err := audio.NewAudioDevice(false, &userdata)
+	if err != nil {
 		panic("Counldn't open the headphone device")
 	}
-	defer C.SDL_CloseAudioDevice(headphoneId)
+	defer headphone.Close()
 
-	C.SDL_PauseAudioDevice(micId, toCInt[false])
-	defer C.SDL_PauseAudioDevice(micId, toCInt[true])
-	C.SDL_PauseAudioDevice(headphoneId, toCInt[false])
-	defer C.SDL_PauseAudioDevice(headphoneId, toCInt[true])
+
+	if mic.AudioFormat() != headphone.AudioFormat() {
+		panic("Couldn't use the same audio format for mic and headphones")
+	}
+	
+	mic.Unpause()
+	headphone.Unpause()
 
 	copyFromRecord := Copy{}
 	copyToPlayback := Copy{}
-	go copyFromRecord.Process(userdata.record, userdata.process, micAudioFormat)
-	go copyToPlayback.Process(userdata.process, userdata.playback, headphoneAudioFormat)
+	go copyFromRecord.Process(userdata.Record, userdata.Process, (C.SDL_AudioFormat) (mic.AudioFormat()))
+	go copyToPlayback.Process(userdata.Process, userdata.Playback, (C.SDL_AudioFormat) (headphone.AudioFormat()))
 
 	mainThreadSignals := make(chan os.Signal, 1)
 	signal.Notify(mainThreadSignals, os.Interrupt)
@@ -116,47 +95,4 @@ func (*Effect) Process(input <- chan byte, output chan <- byte, audioFormat C.SD
 
 	// for data := range input {
 	// }
-}
-
-func openDevice(isCapture bool, userdata *UserData) (C.uint, C.SDL_AudioFormat) {
-	toCInt := map[bool]C.int{
-		true:  C.int(1),
-		false: C.int(0),
-	}
-
-	var desired, obtained C.SDL_AudioSpec
-	var desiredPointer = unsafe.Pointer(&desired)
-	var obtainedPointer = unsafe.Pointer(&obtained)
-
-	C.SDL_memset(desiredPointer, 0, C.sizeof_SDL_AudioSpec)
-	C.SDL_memset(obtainedPointer, 0, C.sizeof_SDL_AudioSpec)
-
-	dataPointer := (uintptr)(unsafe.Pointer(userdata)) ^ 0xFFFFFFFF
-
-	desired.freq = 48000
-	desired.format = C.AUDIO_F32
-	desired.channels = 1
-	if isCapture {
-		desired.samples = 512
-	} else {
-		desired.samples = 1024
-	}
-
-	desired.userdata = (unsafe.Pointer)(dataPointer)
-
-	if isCapture {
-		desired.callback = C.get_fn_writeptr()
-	} else {
-		desired.callback = C.get_fn_readptr()
-	}
-
-	var deviceName *C.char
-	if isCapture {
-		deviceName = C.SDL_GetAudioDeviceName(0, toCInt[isCapture])
-	} else {
-		deviceName = C.SDL_GetAudioDeviceName(1, toCInt[isCapture])
-	}
-
-	deviceId := C.SDL_OpenAudioDevice(deviceName, toCInt[isCapture], &desired, &obtained, C.SDL_AUDIO_ALLOW_ANY_CHANGE)
-	return deviceId, obtained.format
 }
