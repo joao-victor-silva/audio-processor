@@ -32,6 +32,7 @@ type sdl struct {
 
 type SDL interface {
 	Close() error
+	NewAudioDevice(bool, *UserData) (AudioDevice, error)
 }
 
 type audioDevice struct {
@@ -56,7 +57,12 @@ type UserData struct {
 	Playback chan byte
 }
 
-func NewAudioDevice(isCapture bool, userdata *UserData) (AudioDevice, error) {
+func (self *sdl) NewAudioDevice(isCapture bool, userdata *UserData) (AudioDevice, error) {
+	if !self.initialized {
+		err := fmt.Errorf("SDL isn't initialized")
+		return nil, err
+	}
+
 	device := audioDevice{}
 	device.isCapture = isCapture
 
@@ -136,6 +142,7 @@ func (device *audioDevice) AudioFormat() C.SDL_AudioFormat {
 
 func NewSDL() (SDL, error) {
 	sdl := sdl{}
+	sdl.initialized = true
 
 	ret := C.SDL_Init(C.SDL_INIT_AUDIO)
 	var err error
@@ -146,13 +153,14 @@ func NewSDL() (SDL, error) {
 	return &sdl, err
 }
 
-func (*sdl) Close() error {
+func (self *sdl) Close() error {
 	err := C.GoString(C.SDL_GetError())
 	var retError error
 	if err != "" {
 		retError = fmt.Errorf("SDL error: %s", err)
 	}
 	C.SDL_Quit()
+	self.initialized = false
 
 	return retError
 }

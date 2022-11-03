@@ -37,15 +37,15 @@ func main() {
 
 	defer close (userdata.Record)
 
-	mic, err := audio.NewAudioDevice(true, &userdata)
+	mic, err := sdlManager.NewAudioDevice(true, &userdata)
 	if err != nil {
-		panic("Counldn't open the mic device")
+		panic("Counldn't open the mic device. " + err.Error())
 	}
 	defer mic.Close()
 
-	headphone, err := audio.NewAudioDevice(false, &userdata)
+	headphone, err := sdlManager.NewAudioDevice(false, &userdata)
 	if err != nil {
-		panic("Counldn't open the headphone device")
+		panic("Counldn't open the headphone device" + err.Error())
 	}
 	defer headphone.Close()
 
