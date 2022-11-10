@@ -13,26 +13,26 @@ import (
 )
 
 //export fillBuffer
-func fillBuffer(userdata unsafe.Pointer, stream *C.Uint8, length C.int) {
-	userdata = unsafe.Pointer(uintptr(userdata) ^ 0xFFFFFFFF)
-	audioDevicePointer := (*audioDevice)(userdata)
+func fillBuffer(userdataPointer unsafe.Pointer, stream *C.Uint8, length C.int) {
+	userdataPointer = unsafe.Pointer(uintptr(userdataPointer) ^ 0xFFFFFFFF)
+	audioDevice := *(*AudioDevice)(userdataPointer)
 	data := C.GoBytes(unsafe.Pointer(stream), length)
 
 	for i := 0; i + 3 < len(data); i = i + 4 {
 		buffer := math.Float32frombits(binary.LittleEndian.Uint32(data[i:i+4]))
-		audioDevicePointer.WriteData(buffer)
+		audioDevice.WriteData(buffer)
 	}
 
 }
 
 //export readBuffer
-func readBuffer(userdata unsafe.Pointer, stream *C.Uint8, length C.int) {
-	userdata = unsafe.Pointer(uintptr(userdata) ^ 0xFFFFFFFF)
-	audioDevicePointer := (*audioDevice)(userdata)
+func readBuffer(userdataPointer unsafe.Pointer, stream *C.Uint8, length C.int) {
+	userdataPointer = unsafe.Pointer(uintptr(userdataPointer) ^ 0xFFFFFFFF)
+	audioDevice := *(*AudioDevice)(userdataPointer)
 	
 	streamSlice := CPoiterToSlice(stream, length)
 	for i := 0; i + 3 < int(length); i = i + 4 {
-		data := audioDevicePointer.ReadData(false)
+		data := audioDevice.ReadData(false)
 		binaryData := make([]byte, 4)
 		binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data))
 		streamSlice[i] = (C.Uint8) (binaryData[0])
