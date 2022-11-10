@@ -41,6 +41,7 @@ type audioDevice struct {
 	audioFormat C.SDL_AudioFormat
 	isCapture bool
 	dataChannel chan float32
+	data interface{}
 }
 
 type AudioDevice interface {
@@ -71,9 +72,10 @@ func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
 	C.SDL_memset(desiredPointer, 0, C.sizeof_SDL_AudioSpec)
 	C.SDL_memset(obtainedPointer, 0, C.sizeof_SDL_AudioSpec)
 
-	// var data AudioDevice
-	// data = &device
-	dataPointer := (uintptr)(unsafe.Pointer(&device)) ^ 0xFFFFFFFF
+	var data AudioDevice
+	data = &device
+	device.data = &data
+	dataPointer := (uintptr)(unsafe.Pointer(&data)) ^ 0xFFFFFFFF
 
 	desired.freq = 48000
 	desired.format = C.AUDIO_F32
@@ -133,6 +135,7 @@ func (device *audioDevice) TogglePause() {
 
 func (device *audioDevice) Close() {
 	device.Pause()
+	device.data = nil
 	C.SDL_CloseAudioDevice(device.id)
 }
 
