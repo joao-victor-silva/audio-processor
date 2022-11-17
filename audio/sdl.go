@@ -16,6 +16,7 @@ static SDL_AudioCallback get_fn_readptr() {
 import "C"
 import (
 	"fmt"
+	"sync"
 	"unsafe"
 )
 
@@ -41,6 +42,8 @@ type audioDevice struct {
 	audioFormat C.SDL_AudioFormat
 	isCapture bool
 	dataChannel chan float32
+	channelMutex sync.Mutex
+	channelIsOpen bool
 	data interface{}
 }
 
@@ -65,6 +68,7 @@ func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
 	device := audioDevice{}
 	device.isCapture = isCapture
 	device.dataChannel = make(chan float32, 1024)
+	device.channelIsOpen = true
 
 	var desired, obtained C.SDL_AudioSpec
 	var desiredPointer = unsafe.Pointer(&desired)
@@ -135,8 +139,12 @@ func (device *audioDevice) TogglePause() {
 }
 
 func (device *audioDevice) Close() {
+	device.channelMutex.Lock()
+	defer device.channelMutex.Unlock()
 	device.Pause()
 	device.data = nil
+	device.channelIsOpen = false
+	close(device.dataChannel)
 	C.SDL_CloseAudioDevice(device.id)
 }
 
@@ -145,9 +153,14 @@ func (device *audioDevice) AudioFormat() C.SDL_AudioFormat {
 }
 
 func (device *audioDevice) WriteData(data float32) {
-	select {
-		case device.dataChannel <- data:
-		default:
+	device.channelMutex.Lock()
+	defer device.channelMutex.Unlock()
+
+	if (device.channelIsOpen) {
+		select {
+			case device.dataChannel <- data:
+			default:
+		}
 	}
 }
 
