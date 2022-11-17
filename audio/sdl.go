@@ -51,7 +51,8 @@ type AudioDevice interface {
 	TogglePause()
 	Close()
 	AudioFormat() C.SDL_AudioFormat
-	ReadData(bool) float32
+	ReadData() float32
+	readData() float32
 	WriteData(float32)
 }
 
@@ -74,7 +75,7 @@ func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
 
 	var data AudioDevice
 	data = &device
-	device.data = &data
+device.data = &data
 	dataPointer := (uintptr)(unsafe.Pointer(&data)) ^ 0xFFFFFFFF
 
 	desired.freq = 48000
@@ -150,11 +151,11 @@ func (device *audioDevice) WriteData(data float32) {
 	}
 }
 
-func (device *audioDevice) ReadData(isBlocking bool) float32 {
-	if isBlocking {
-		return <- device.dataChannel
-	}
+func (device *audioDevice) ReadData() float32 {
+	return <- device.dataChannel
+}
 
+func (device *audioDevice) readData() float32 {
 	select {
 		case data := <- device.dataChannel:
 			return data

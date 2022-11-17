@@ -32,7 +32,7 @@ func readBuffer(userdataPointer unsafe.Pointer, stream *C.Uint8, length C.int) {
 	
 	streamSlice := CPoiterToSlice(stream, length)
 	for i := 0; i + 3 < int(length); i = i + 4 {
-		data := audioDevice.ReadData(false)
+		data := audioDevice.readData()
 		binaryData := make([]byte, 4)
 		binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data))
 		streamSlice[i] = (C.Uint8) (binaryData[0])

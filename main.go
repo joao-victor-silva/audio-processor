@@ -60,7 +60,7 @@ func main() {
 
 func (*Copy) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice, audioFormat C.SDL_AudioFormat) {
 	for {
-		outputDevice.WriteData(inputDevice.ReadData(true))
+		outputDevice.WriteData(inputDevice.ReadData())
 	}
 }
 
