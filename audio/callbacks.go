@@ -18,18 +18,20 @@ func fillBuffer(userdataPointer unsafe.Pointer, stream *C.Uint8, length C.int) {
 	audioDevice := *(*AudioDevice)(userdataPointer)
 	data := C.GoBytes(unsafe.Pointer(stream), length)
 
+	dataArray := make([]float32, 0, (length / 4) + 1)
 	for i := 0; i + 3 < len(data); i = i + 4 {
 		buffer := math.Float32frombits(binary.LittleEndian.Uint32(data[i:i+4]))
-		audioDevice.WriteData(buffer)
+		dataArray = append(dataArray, buffer)
 	}
 
+	audioDevice.WriteSlice(dataArray)
 }
 
 //export readBuffer
 func readBuffer(userdataPointer unsafe.Pointer, stream *C.Uint8, length C.int) {
 	userdataPointer = unsafe.Pointer(uintptr(userdataPointer) ^ 0xFFFFFFFF)
 	audioDevice := *(*AudioDevice)(userdataPointer)
-	
+
 	streamSlice := CPoiterToSlice(stream, length)
 	for i := 0; i + 3 < int(length); i = i + 4 {
 		data := audioDevice.readData()

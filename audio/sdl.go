@@ -57,6 +57,7 @@ type AudioDevice interface {
 	ReadData() float32
 	readData() float32
 	WriteData(float32)
+	WriteSlice([]float32)
 }
 
 func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
@@ -156,7 +157,25 @@ func (device *audioDevice) WriteData(data float32) {
 	device.channelMutex.Lock()
 	defer device.channelMutex.Unlock()
 
-	if (device.channelIsOpen) {
+	if !device.channelIsOpen {
+		return
+	}
+
+	select {
+		case device.dataChannel <- data:
+		default:
+	}
+}
+
+func (device *audioDevice) WriteSlice(dataArray []float32) {
+	device.channelMutex.Lock()
+	defer device.channelMutex.Unlock()
+
+	if !device.channelIsOpen {
+		return
+	}
+
+	for _, data := range dataArray {
 		select {
 			case device.dataChannel <- data:
 			default:
