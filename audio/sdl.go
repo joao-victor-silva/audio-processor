@@ -51,6 +51,7 @@ type AudioDevice interface {
 	Unpause()
 	Pause()
 	IsPaused() bool
+	IsChannelOpen() bool
 	TogglePause()
 	Close()
 	AudioFormat() C.SDL_AudioFormat
@@ -137,6 +138,10 @@ func (device *audioDevice) TogglePause() {
 	} else {
 		device.Pause()
 	}
+}
+
+func (device *audioDevice) IsChannelOpen() bool {
+	return device.channelIsOpen
 }
 
 func (device *audioDevice) Close() {

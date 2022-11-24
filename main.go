@@ -49,9 +49,7 @@ func main() {
 	headphone.Unpause()
 
 	copyFromRecord := Copy{}
-	// copyToPlayback := Copy{}
 	go copyFromRecord.Process(mic, headphone, (C.SDL_AudioFormat) (mic.AudioFormat()))
-	// go copyToPlayback.Process(userdata.Process, userdata.Playback, (C.SDL_AudioFormat) (headphone.AudioFormat()))
 
 	mainThreadSignals := make(chan os.Signal, 1)
 	signal.Notify(mainThreadSignals, os.Interrupt)
@@ -59,8 +57,14 @@ func main() {
 }
 
 func (*Copy) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice, audioFormat C.SDL_AudioFormat) {
-	for {
+	for outputDevice.IsChannelOpen() {
 		outputDevice.WriteData(inputDevice.ReadData())
+	}
+}
+
+func (*Effect) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice, audioFormat C.SDL_AudioFormat) {
+	for outputDevice.IsChannelOpen() {
+		outputDevice.WriteData(inputDevice.ReadData() / 100)
 	}
 }
 
