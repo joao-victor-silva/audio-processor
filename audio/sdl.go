@@ -61,6 +61,9 @@ type AudioDevice interface {
 	WriteSlice([]float32)
 }
 
+// TODO: Create sink and source interface as a subset of audio device, read-only
+// and write-only
+
 func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
 	if !self.initialized {
 		err := fmt.Errorf("SDL isn't initialized")
