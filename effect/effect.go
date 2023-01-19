@@ -8,8 +8,12 @@ package effect
 */
 import "C"
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
 	"math"
+	"time"
+
 	"github.com/joao-victor-silva/audio-processor/audio"
 )
 
@@ -17,7 +21,9 @@ type ProcessData interface {
 	Process(input <- chan byte, output chan <- byte)
 }
 
-type Copy struct{}
+type Copy struct{
+	File io.Writer
+}
 type Effect struct {
 	Min float64
 	Max float64
@@ -51,9 +57,10 @@ type Effect struct {
 // }
 
 func (effect *Effect) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice) {
-	samples := make([]float64, 1024)
+	samples := make([]float64, 256)
 	i := 0
 	for outputDevice.IsChannelOpen() {
+		begin := time.Now()
 		dataBeforeEffect := inputDevice.ReadData()
 
 		samples[i] = float64(dataBeforeEffect)
@@ -74,31 +81,36 @@ func (effect *Effect) Process(inputDevice audio.AudioDevice , outputDevice audio
 		var factor float64
 		var state string
 
-		if (volume < effect.Threshold) {
+		switch {
+		case volume < effect.Threshold:
 			dataAfterEffect = float32(average)
 			state = "Threshold"
-		} else if (volume < effect.Min) {
+		case volume < effect.Min:
 			//amp
 			delta = float64(dataBeforeEffect) - average
 			factor = effect.Min / volume
 			
 			dataAfterEffect = float32(average + (delta * factor))
 			state = "Below min"
-		} else if (volume > effect.Max) {
+		case volume < effect.Max:
+			state = "None"
+			dataAfterEffect = dataBeforeEffect
+		default:
 			//reduce
 			delta = float64(dataBeforeEffect) - average
 			factor = effect.Max / volume
 			
 			dataAfterEffect = float32(average + (delta * factor))
 			state = "Above max"
-		} else {
-			state = "None"
-			dataAfterEffect = dataBeforeEffect
 		}
-		fmt.Println("v:", volume, "avg:", average, "d:", delta, "f:", factor, "s:", state, "b:", dataBeforeEffect, "a:", dataAfterEffect)
+		_ = state
+		// fmt.Println("v:", volume, "avg:", average, "d:", delta, "f:", factor, "s:", state, "b:", dataBeforeEffect, "a:", dataAfterEffect)
 		outputDevice.WriteData(dataAfterEffect)
 		i += 1
 		i = i & (len(samples) - 1)
+		end := time.Now()
+		elapsed := end.Sub(begin)
+		fmt.Println(elapsed.String())
 		// fmt.Println("i:", i)
 	}
 }
@@ -119,10 +131,17 @@ func getVolume(samples []float64) float64 {
 	return volume
 }
 
-func (*Copy) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice) {
+func (c *Copy) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice) {
 	for outputDevice.IsChannelOpen() {
+		begin := time.Now()
 		data := inputDevice.ReadData()
+		binaryData := make([]byte, 4)
+		binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data))
+		c.File.Write(binaryData)
 		// fmt.Println("value:", data)
 		outputDevice.WriteData(data)
+		end := time.Now()
+		elapsed := end.Sub(begin)
+		fmt.Printf("%v\n", elapsed.String())
 	}
 }
