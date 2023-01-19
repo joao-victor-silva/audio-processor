@@ -34,6 +34,7 @@ type sdl struct {
 type SDL interface {
 	Close() error
 	NewAudioDevice(bool) (AudioDevice, error)
+	ListAudioDevice(bool) error
 }
 
 type audioDevice struct {
@@ -54,9 +55,9 @@ type AudioDevice interface {
 	IsChannelOpen() bool
 	TogglePause()
 	Close()
-	AudioFormat() C.SDL_AudioFormat
+	AudioFormat() uint
 	ReadData() float32
-	readData() float32
+	ReadDataUnsafe() float32
 	WriteData(float32)
 	WriteSlice([]float32)
 }
@@ -87,11 +88,11 @@ func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
 device.data = &data
 	dataPointer := (uintptr)(unsafe.Pointer(&data)) ^ 0xFFFFFFFF
 
-	desired.freq = 48000
+	desired.freq = 44100
 	desired.format = C.AUDIO_F32
 	desired.channels = 1
 	if isCapture {
-		desired.samples = 512
+		desired.samples = 1024
 	} else {
 		desired.samples = 1024
 	}
@@ -108,7 +109,7 @@ device.data = &data
 	if isCapture {
 		deviceName = C.SDL_GetAudioDeviceName(0, toCInt(isCapture))
 	} else {
-		deviceName = C.SDL_GetAudioDeviceName(1, toCInt(isCapture))
+		deviceName = C.SDL_GetAudioDeviceName(0, toCInt(isCapture))
 	}
 
 	device.id = C.SDL_OpenAudioDevice(deviceName, toCInt(isCapture), &desired, &obtained, C.SDL_AUDIO_ALLOW_ANY_CHANGE)
@@ -119,6 +120,17 @@ device.data = &data
 	}
 
 	return &device, err
+}
+
+func (s *sdl) ListAudioDevice(isCapture bool) error {
+	numberOfAudioDevices := C.SDL_GetNumAudioDevices(toCInt(isCapture))
+
+	for i := C.int(0); i < numberOfAudioDevices; i++ {
+		deviceName := C.GoString(C.SDL_GetAudioDeviceName(i, toCInt(isCapture)))
+		fmt.Println("Device:", deviceName)
+	}
+
+	return nil
 }
 
 func (device *audioDevice) Pause() {
@@ -157,8 +169,8 @@ func (device *audioDevice) Close() {
 	C.SDL_CloseAudioDevice(device.id)
 }
 
-func (device *audioDevice) AudioFormat() C.SDL_AudioFormat {
-	return device.audioFormat
+func (device *audioDevice) AudioFormat() uint {
+	return uint(device.audioFormat)
 }
 
 func (device *audioDevice) WriteData(data float32) {
@@ -195,7 +207,7 @@ func (device *audioDevice) ReadData() float32 {
 	return <- device.dataChannel
 }
 
-func (device *audioDevice) readData() float32 {
+func (device *audioDevice) ReadDataUnsafe() float32 {
 	select {
 		case data := <- device.dataChannel:
 			return data
