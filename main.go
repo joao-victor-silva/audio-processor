@@ -18,9 +18,9 @@ import (
 )
 
 func main() {
-	threshold := flag.Float64("threshold", 0.001, "threshold")
-	min := flag.Float64("min", 0.002, "min")
-	max := flag.Float64("max", 0.03, "max")
+	threshold := flag.Float64("threshold", 0.0001, "threshold")
+	min := flag.Float64("min", 0.02, "min")
+	max := flag.Float64("max", 0.8, "max")
 	// max := flag.Float64("max", 1.0, "max")
 	// min := flag.Float64("min", -1.0, "min")
 	flag.Parse()
