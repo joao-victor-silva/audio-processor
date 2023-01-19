@@ -1,4 +1,4 @@
-{pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/refs/tags/22.05.tar.gz") {}}:
+{pkgs ? import (fetchTarball "https://github.com/NixOS/nixpkgs/archive/refs/tags/22.11.tar.gz") {}}:
 pkgs.mkShell {
   buildInputs = [
     pkgs.go
@@ -14,6 +14,7 @@ pkgs.mkShell {
   shellHook = ''
   '';
 
+  LANGUAGE_SERVER = "gopls";
   DIAGNOSTICS = "golangci_lint:gitlint:codespell";
   FORMATTING = "";
 }
