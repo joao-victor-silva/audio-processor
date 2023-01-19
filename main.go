@@ -60,7 +60,8 @@ func main() {
 		panic("Couldn't use the same audio format for mic and headphones")
 	}
 
-	// copyEffect := effect.Copy{}
+	// copyEffect := effect.Copy{File: file}
+	// go copyEffect.Process(mic, headphone)
 	// go copyEffect.Process(&input_output, headphone)
 	copyFromRecord := effect.Effect{ Min: *min, Max: *max, Threshold: *threshold }
 	// go copyFromRecord.Process(&input_output, headphone)
