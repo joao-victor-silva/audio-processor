@@ -8,28 +8,49 @@ package effect
 */
 import "C"
 import (
-	"encoding/binary"
+	_ "encoding/binary"
 	"fmt"
-	"io"
+	_ "io"
 	"math"
-	"time"
+	_ "os"
 
 	"github.com/joao-victor-silva/audio-processor/audio"
 )
 
-type ProcessData interface {
-	Process(input <- chan byte, output chan <- byte)
+type Float64 float64
+type Float32 float32
+
+func (f Float64) String() string {
+	return fmt.Sprintf("%.4f", f*1000)
 }
 
-type Copy struct{
-	File io.Writer
+func (f Float32) String() string {
+	return fmt.Sprintf("%.4f", f*1000)
 }
+
+type LogReg struct {
+	Volume  Float64
+	Average Float64
+	Delta   Float64
+	Factor  Float64
+	State   string
+	Before  Float32
+	After   Float32
+}
+
+func (r LogReg) String() string {
+	return fmt.Sprint("v: ", r.Volume, " avg: ", r.Average, " d: ", r.Delta, " f: ", r.Factor, " state: ", r.State, " b: ", r.Before, " a: ", r.After)
+}
+
 type Effect struct {
-	Min float64
-	Max float64
+	Min       float64
+	Max       float64
 	Threshold float64
+	LogTail   []LogReg
 }
-//
+
+type Copy struct{}
+
 // type GainEffect struct {
 // 	Gain float64
 // }
@@ -56,11 +77,12 @@ type Effect struct {
 // 	}
 // }
 
-func (effect *Effect) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice) {
+func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
 	samples := make([]float64, 256)
 	i := 0
+	j := 0
 	for outputDevice.IsChannelOpen() {
-		begin := time.Now()
+		// begin := time.Now()
 		dataBeforeEffect := inputDevice.ReadData()
 
 		samples[i] = float64(dataBeforeEffect)
@@ -72,7 +94,7 @@ func (effect *Effect) Process(inputDevice audio.AudioDevice , outputDevice audio
 
 		volume := 0.0
 		for _, sample := range samples {
-			volume += math.Pow(sample - average, 2)
+			volume += math.Pow(sample-average, 2)
 		}
 		volume = math.Sqrt(volume) / float64(len(samples))
 
@@ -89,7 +111,7 @@ func (effect *Effect) Process(inputDevice audio.AudioDevice , outputDevice audio
 			//amp
 			delta = float64(dataBeforeEffect) - average
 			factor = effect.Min / volume
-			
+
 			dataAfterEffect = float32(average + (delta * factor))
 			state = "Below min"
 		case volume < effect.Max:
@@ -99,18 +121,24 @@ func (effect *Effect) Process(inputDevice audio.AudioDevice , outputDevice audio
 			//reduce
 			delta = float64(dataBeforeEffect) - average
 			factor = effect.Max / volume
-			
+
 			dataAfterEffect = float32(average + (delta * factor))
 			state = "Above max"
 		}
 		_ = state
 		// fmt.Println("v:", volume, "avg:", average, "d:", delta, "f:", factor, "s:", state, "b:", dataBeforeEffect, "a:", dataAfterEffect)
+		logReg := LogReg{Volume: Float64(volume), Average: Float64(average), Delta: Float64(delta), Factor: Float64(factor), State: state, Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
+		effect.LogTail[j] = logReg
+		j += 1
+		j = j & (len(effect.LogTail) - 1)
+
 		outputDevice.WriteData(dataAfterEffect)
 		i += 1
 		i = i & (len(samples) - 1)
-		end := time.Now()
-		elapsed := end.Sub(begin)
-		fmt.Println(elapsed.String())
+
+		// end := time.Now()
+		// elapsed := end.Sub(begin)
+		// fmt.Println(elapsed.String())
 		// fmt.Println("i:", i)
 	}
 }
@@ -124,24 +152,24 @@ func getVolume(samples []float64) float64 {
 
 	volume := 0.0
 	for _, sample := range samples {
-		volume += math.Pow(sample - average, 2)
+		volume += math.Pow(sample-average, 2)
 	}
 	volume = math.Sqrt(volume) / float64(len(samples))
 
 	return volume
 }
 
-func (c *Copy) Process(inputDevice audio.AudioDevice , outputDevice audio.AudioDevice) {
+func (c *Copy) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
 	for outputDevice.IsChannelOpen() {
-		begin := time.Now()
+		// begin := time.Now()
 		data := inputDevice.ReadData()
-		binaryData := make([]byte, 4)
-		binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data))
-		c.File.Write(binaryData)
+		// binaryData := make([]byte, 4)
+		// binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data))
+		// c.File.Write(binaryData)
 		// fmt.Println("value:", data)
 		outputDevice.WriteData(data)
-		end := time.Now()
-		elapsed := end.Sub(begin)
-		fmt.Printf("%v\n", elapsed.String())
+		// end := time.Now()
+		// elapsed := end.Sub(begin)
+		// fmt.Printf("%v\n", elapsed.String())
 	}
 }

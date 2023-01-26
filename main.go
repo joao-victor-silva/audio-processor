@@ -8,8 +8,8 @@ package main
 */
 import "C"
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -43,10 +43,9 @@ func main() {
 	defer mic.Close()
 	mic.Unpause()
 
-	file, _ := os.OpenFile("data.bin", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-	input_output := customAudioDevice{channelIsOpen: true, sampleCount: 0, file: file};
-	defer input_output.Close()
-
+	raw_file, _ := os.OpenFile("data.bin", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	raw := audio.Processor{IsFileOpen: true, File: raw_file}
+	defer raw.Close()
 
 	headphone, err := sdlManager.NewAudioDevice(false)
 	if err != nil {
@@ -55,20 +54,28 @@ func main() {
 	defer headphone.Close()
 	headphone.Unpause()
 
-
 	if mic.AudioFormat() != headphone.AudioFormat() {
 		panic("Couldn't use the same audio format for mic and headphones")
 	}
 
-	// copyEffect := effect.Copy{File: file}
-	// go copyEffect.Process(mic, headphone)
-	// go copyEffect.Process(&input_output, headphone)
-	copyFromRecord := effect.Effect{ Min: *min, Max: *max, Threshold: *threshold }
-	// go copyFromRecord.Process(&input_output, headphone)
-	// go copyFromRecord.Process(mic, headphone)
-	go copyFromRecord.Process(mic, &input_output)
+	copyFromRecord := effect.Effect{Min: *min, Max: *max, Threshold: *threshold, LogTail: make([]effect.LogReg, 2048)}
+	defer (func() {
+		for _, data := range copyFromRecord.LogTail {
+			fmt.Println(data)
+		}
+	})()
+
+	copyEffect := effect.Copy{}
+	go copyEffect.Process(mic, &raw)
+
+
+	processed_file, _ := os.OpenFile("processed-data.bin", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	processed := audio.Processor{IsFileOpen: true, File: processed_file}
+	defer processed.Close()
+	go copyFromRecord.Process(&raw, &processed)
+
 
 	mainThreadSignals := make(chan os.Signal, 1)
 	signal.Notify(mainThreadSignals, os.Interrupt)
-	_ = <- mainThreadSignals
+	_ = <-mainThreadSignals
 }

@@ -15,7 +15,10 @@ static SDL_AudioCallback get_fn_readptr() {
 */
 import "C"
 import (
+	"encoding/binary"
 	"fmt"
+	"math"
+	"os"
 	"sync"
 	"unsafe"
 )
@@ -60,6 +63,41 @@ type AudioDevice interface {
 	ReadDataUnsafe() float32
 	WriteData(float32)
 	WriteSlice([]float32)
+}
+
+type AudioProcessor interface {
+	IsChannelOpen() bool
+	Close()
+	ReadData() float32
+	WriteData(float32)
+}
+
+type Processor struct{
+	File *os.File
+	IsFileOpen bool
+}
+
+func (r *Processor) IsChannelOpen() bool {
+	return r.IsFileOpen
+}
+
+func (r *Processor) Close() {
+	r.File.Close()
+	r.File = nil
+	r.IsFileOpen = false
+}
+
+func (r *Processor) ReadData() float32 {
+	data := make([]byte, 4)
+	r.File.Read(data)
+
+	return math.Float32frombits(binary.LittleEndian.Uint32(data))
+}
+
+func (r *Processor) WriteData(data float32) {
+	binaryData := make([]byte, 4)
+	binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data))
+	r.File.Write(binaryData)
 }
 
 // TODO: Create sink and source interface as a subset of audio device, read-only
