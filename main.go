@@ -43,10 +43,6 @@ func main() {
 	defer mic.Close()
 	mic.Unpause()
 
-	raw_file, _ := os.OpenFile("data.bin", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-	raw := audio.Processor{IsFileOpen: true, File: raw_file}
-	defer raw.Close()
-
 	headphone, err := sdlManager.NewAudioDevice(false)
 	if err != nil {
 		panic("Counldn't open the headphone device" + err.Error())
@@ -58,22 +54,25 @@ func main() {
 		panic("Couldn't use the same audio format for mic and headphones")
 	}
 
-	copyFromRecord := effect.Effect{Min: *min, Max: *max, Threshold: *threshold, LogTail: make([]effect.LogReg, 2048)}
+	compressor := effect.Effect{Min: *min, Max: *max, Threshold: *threshold, LogTail: make([]effect.LogReg, 2048)}
 	defer (func() {
-		for _, data := range copyFromRecord.LogTail {
+		for _, data := range compressor.LogTail {
 			fmt.Println(data)
 		}
 	})()
 
-	copyEffect := effect.Copy{}
-	go copyEffect.Process(mic, &raw)
+	raw := audio.NewProcessor("data.bin")
+	defer raw.Close()
 
+	copyFromMic := effect.Copy{}
+	go copyFromMic.Process(mic, raw)
 
-	processed_file, _ := os.OpenFile("processed-data.bin", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-	processed := audio.Processor{IsFileOpen: true, File: processed_file}
+	processed := audio.NewProcessor("processed-data.bin")
 	defer processed.Close()
-	go copyFromRecord.Process(&raw, &processed)
+	go compressor.Process(raw, processed)
 
+	copyToHeadphone := effect.Copy{}
+	go copyToHeadphone.Process(processed, headphone)
 
 	mainThreadSignals := make(chan os.Signal, 1)
 	signal.Notify(mainThreadSignals, os.Interrupt)
