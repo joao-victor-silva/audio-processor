@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	threshold := flag.Float64("threshold", 0.0001, "threshold")
+	threshold := flag.Float64("threshold", 0.00012, "threshold")
 	min := flag.Float64("min", 0.02, "min")
 	max := flag.Float64("max", 0.8, "max")
 	// max := flag.Float64("max", 1.0, "max")
@@ -54,9 +54,12 @@ func main() {
 		panic("Couldn't use the same audio format for mic and headphones")
 	}
 
-	compressor := effect.Effect{Min: *min, Max: *max, Threshold: *threshold, LogTail: make([]effect.LogReg, 2048)}
+	compressor := effect.Effect{Min: *min, Max: *max, Threshold: *threshold, LogTail: make([]effect.LogReg, 4096), LastLogRegIndex: 0}
 	defer (func() {
-		for _, data := range compressor.LogTail {
+		for _, data := range compressor.LogTail[compressor.LastLogRegIndex:] {
+			fmt.Println(data)
+		}
+		for _, data := range compressor.LogTail[:compressor.LastLogRegIndex] {
 			fmt.Println(data)
 		}
 	})()
