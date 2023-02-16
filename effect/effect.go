@@ -13,8 +13,10 @@ import (
 	_ "io"
 	"math"
 	_ "os"
+	"time"
 
 	"github.com/joao-victor-silva/audio-processor/audio"
+	"golang.org/x/text/cases"
 )
 
 type Float64 float64
@@ -29,24 +31,28 @@ func (f Float32) String() string {
 }
 
 type LogReg struct {
-	Volume  Float64
-	Average Float64
-	Delta   Float64
-	Factor  Float64
-	State   string
-	Before  Float32
-	After   Float32
+	Timestamp time.Duration
+	Volume    Float64
+	Average   Float64
+	Delta     Float64
+	Factor    Float64
+	State     string
+	Before    Float32
+	After     Float32
 }
 
 func (r LogReg) String() string {
-	return fmt.Sprint("v: ", r.Volume, " avg: ", r.Average, " d: ", r.Delta, " f: ", r.Factor, " state: ", r.State, " b: ", r.Before, " a: ", r.After)
+	return fmt.Sprint(r.Timestamp, "-> v: ", r.Volume, " avg: ", r.Average, " d: ", r.Delta, " f: ", r.Factor, " state: ", r.State, " b: ", r.Before, " a: ", r.After)
 }
 
 type Effect struct {
-	Min       float64
-	Max       float64
-	Threshold float64
-	LogTail   []LogReg
+	Min             float64
+	Max             float64
+	Threshold       float64
+	LogTail         []LogReg
+	LastLogRegIndex int
+	Samples         int
+	Attack          int
 }
 
 type Copy struct{}
@@ -77,10 +83,26 @@ type Copy struct{}
 // 	}
 // }
 
+type CompressorState int
+const (
+	Attack CompressorState = iota
+	Compressing
+	Release
+
+	Nop
+)
+
 func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
-	samples := make([]float64, 256)
+	samples := make([]float64, effect.Samples)
 	i := 0
-	j := 0
+	effect.LastLogRegIndex = 0
+	startTime := time.Now()
+
+	// samplesWithAttck := 0
+	// alpha := 1 / effect.Attack
+	effectState := Nop
+
+
 	for outputDevice.IsChannelOpen() {
 		// begin := time.Now()
 		dataBeforeEffect := inputDevice.ReadData()
@@ -103,10 +125,13 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 		var factor float64
 		var state string
 
+		var desiredState CompressorState	
+
 		switch {
 		case volume < effect.Threshold:
 			dataAfterEffect = float32(average)
 			state = "Threshold"
+			desiredState = Nop
 		case volume < effect.Min:
 			//amp
 			delta = float64(dataBeforeEffect) - average
@@ -114,9 +139,11 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 
 			dataAfterEffect = float32(average + (delta * factor))
 			state = "Below min"
+			desiredState = Compressing
 		case volume < effect.Max:
 			state = "None"
 			dataAfterEffect = dataBeforeEffect
+			desiredState = Compressing
 		default:
 			//reduce
 			delta = float64(dataBeforeEffect) - average
@@ -124,13 +151,32 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 
 			dataAfterEffect = float32(average + (delta * factor))
 			state = "Above max"
+			desiredState = Compressing
 		}
 		_ = state
+
+
+		switch {
+		case effectState == Nop && desiredState != Nop:
+			effectState = Attack
+		case effectState != Nop && desiredState == Nop:
+			effectState = Release
+		}
+
+		switch {
+		case effectState == Attack:
+			// Do the attach with the alpha blending and check need to change state for Compressing
+		case effectState == Compressing:
+			// Compressing (a.k.a do nothing)
+		case effectState == Release:
+			// TODO
+		}
+
 		// fmt.Println("v:", volume, "avg:", average, "d:", delta, "f:", factor, "s:", state, "b:", dataBeforeEffect, "a:", dataAfterEffect)
-		logReg := LogReg{Volume: Float64(volume), Average: Float64(average), Delta: Float64(delta), Factor: Float64(factor), State: state, Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
-		effect.LogTail[j] = logReg
-		j += 1
-		j = j & (len(effect.LogTail) - 1)
+		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), Average: Float64(average), Delta: Float64(delta), Factor: Float64(factor), State: state, Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
+		effect.LogTail[effect.LastLogRegIndex] = logReg
+		effect.LastLogRegIndex += 1
+		effect.LastLogRegIndex = effect.LastLogRegIndex & (len(effect.LogTail) - 1)
 
 		outputDevice.WriteData(dataAfterEffect)
 		i += 1
