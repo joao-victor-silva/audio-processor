@@ -11,8 +11,8 @@ import (
 type AudioProcessor interface {
 	IsChannelOpen() bool
 	Close()
-	ReadData() float32
-	WriteData(float32)
+	ReadData() Sample
+	WriteData(Sample)
 }
 
 type processor struct {
@@ -21,7 +21,7 @@ type processor struct {
 	writer *bufio.Writer
 	// Input      chan float32
 	// Output     chan float32
-	bypass chan float32
+	bypass chan Sample
 	mu sync.Mutex
 }
 
@@ -39,7 +39,7 @@ func (p *processor) Close() {
 	close(p.bypass)
 }
 
-func (p *processor) ReadData() float32 {
+func (p *processor) ReadData() Sample {
 	// data := make([]byte, 4)
 	// p.File.Read(data)
 	//
@@ -47,7 +47,7 @@ func (p *processor) ReadData() float32 {
 	return <- p.bypass
 }
 
-func (p *processor) WriteData(data float32) {
+func (p *processor) WriteData(data Sample) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if !p.isFileOpen {
@@ -55,7 +55,7 @@ func (p *processor) WriteData(data float32) {
 	}
 
 	binaryData := make([]byte, 4)
-	binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data))
+	binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data.Value))
 	p.writer.Write(binaryData)
 	p.bypass <- data
 }
@@ -65,5 +65,5 @@ func NewProcessor(filePath string) *processor {
 	if err != nil {
 		panic(err)
 	}
-	return &processor{File: file, isFileOpen: true, bypass: make(chan float32, 2048), writer: bufio.NewWriter(file)}
+	return &processor{File: file, isFileOpen: true, bypass: make(chan Sample, 2048), writer: bufio.NewWriter(file)}
 }

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/joao-victor-silva/audio-processor/audio"
-	"golang.org/x/text/cases"
+	// "golang.org/x/text/cases"
 )
 
 type Float64 float64
@@ -105,7 +105,8 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 
 	for outputDevice.IsChannelOpen() {
 		// begin := time.Now()
-		dataBeforeEffect := inputDevice.ReadData()
+		sample := inputDevice.ReadData()
+		dataBeforeEffect, volume := sample.Value, sample.Volume
 
 		samples[i] = float64(dataBeforeEffect)
 		average := 0.0
@@ -113,12 +114,6 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 			average += sample
 		}
 		average /= float64(len(samples))
-
-		volume := 0.0
-		for _, sample := range samples {
-			volume += math.Pow(sample-average, 2)
-		}
-		volume = math.Sqrt(volume) / float64(len(samples))
 
 		var dataAfterEffect float32
 		var delta float64
@@ -178,7 +173,7 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 		effect.LastLogRegIndex += 1
 		effect.LastLogRegIndex = effect.LastLogRegIndex & (len(effect.LogTail) - 1)
 
-		outputDevice.WriteData(dataAfterEffect)
+		outputDevice.WriteData(audio.Sample{Value: dataAfterEffect, Volume: volume})
 		i += 1
 		i = i & (len(samples) - 1)
 

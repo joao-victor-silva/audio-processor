@@ -54,7 +54,7 @@ func main() {
 		panic("Couldn't use the same audio format for mic and headphones")
 	}
 
-	compressor := effect.Effect{Min: *min, Max: *max, Threshold: *threshold, LogTail: make([]effect.LogReg, 4096), LastLogRegIndex: 0}
+	compressor := effect.Effect{Min: *min, Max: *max, Threshold: *threshold, LogTail: make([]effect.LogReg, 4096), LastLogRegIndex: 0, Samples: 1024}
 	defer (func() {
 		for _, data := range compressor.LogTail[compressor.LastLogRegIndex:] {
 			fmt.Println(data)

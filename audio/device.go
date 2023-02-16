@@ -14,17 +14,22 @@ static SDL_AudioCallback get_fn_readptr() {
 }
 */
 import "C"
-import "sync"
+import (
+	"math"
+	"sync"
+)
 
 type audioDevice struct {
-	id C.uint
-	paused bool
-	audioFormat C.SDL_AudioFormat
-	isCapture bool
-	dataChannel chan float32
-	channelMutex sync.Mutex
-	channelIsOpen bool
-	data interface{}
+	id                 C.uint
+	paused             bool
+	audioFormat        C.SDL_AudioFormat
+	isCapture          bool
+	dataChannel        chan Sample
+	channelMutex       sync.Mutex
+	channelIsOpen      bool
+	volumeSamples      []float64
+	volumeSamplesIndex int
+	data               interface{}
 }
 
 type AudioDevice interface {
@@ -35,10 +40,15 @@ type AudioDevice interface {
 	TogglePause()
 	Close()
 	AudioFormat() uint
-	ReadData() float32
+	ReadData() Sample
 	ReadDataUnsafe() float32
-	WriteData(float32)
+	WriteData(Sample)
 	WriteSlice([]float32)
+}
+
+type Sample struct {
+	Value  float32
+	Volume float64
 }
 
 func (device *audioDevice) Pause() {
@@ -56,7 +66,7 @@ func (device *audioDevice) IsPaused() bool {
 }
 
 func (device *audioDevice) TogglePause() {
-	if (device.IsPaused()) {
+	if device.IsPaused() {
 		device.Unpause()
 	} else {
 		device.Pause()
@@ -81,7 +91,7 @@ func (device *audioDevice) AudioFormat() uint {
 	return uint(device.audioFormat)
 }
 
-func (device *audioDevice) WriteData(data float32) {
+func (device *audioDevice) WriteData(data Sample) {
 	device.channelMutex.Lock()
 	defer device.channelMutex.Unlock()
 
@@ -90,8 +100,8 @@ func (device *audioDevice) WriteData(data float32) {
 	}
 
 	select {
-		case device.dataChannel <- data:
-		default:
+	case device.dataChannel <- data:
+	default:
 	}
 }
 
@@ -103,23 +113,36 @@ func (device *audioDevice) WriteSlice(dataArray []float32) {
 		return
 	}
 
+	volumeSamplesAmount := float64(len(dataArray))
+	average := float32(0.0)
+	for _, data := range dataArray {
+		average += data
+	}
+	average64 := float64(average) / volumeSamplesAmount
+
+	volume := 0.0
+	for _, s := range dataArray {
+		volume += math.Pow(float64(s)-average64, 2)
+	}
+	volume = math.Sqrt(volume) / volumeSamplesAmount
+
 	for _, data := range dataArray {
 		select {
-			case device.dataChannel <- data:
-			default:
+		case device.dataChannel <- Sample{Value: data, Volume: volume}:
+		default:
 		}
 	}
 }
 
-func (device *audioDevice) ReadData() float32 {
-	return <- device.dataChannel
+func (device *audioDevice) ReadData() Sample {
+	return <-device.dataChannel
 }
 
 func (device *audioDevice) ReadDataUnsafe() float32 {
 	select {
-		case data := <- device.dataChannel:
-			return data
-		default:
-			return 0
+	case data := <-device.dataChannel:
+		return data.Value
+	default:
+		return 0
 	}
 }

@@ -47,7 +47,7 @@ func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
 
 	device := audioDevice{}
 	device.isCapture = isCapture
-	device.dataChannel = make(chan float32, 1024)
+	device.dataChannel = make(chan Sample, 1024)
 	device.channelIsOpen = true
 
 	var desired, obtained C.SDL_AudioSpec
