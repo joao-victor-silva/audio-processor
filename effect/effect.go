@@ -92,6 +92,93 @@ const (
 	Nop
 )
 
+type DownwardCompressor struct {
+	Max float64
+	Factor float64
+	Samples int
+}
+
+func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
+	samples := make([]float64, c.Samples)
+	i := 0
+
+	for outputDevice.IsChannelOpen() {
+		sample := inputDevice.ReadData()
+		dataBeforeEffect, volume := sample.Value, sample.Volume
+
+		//
+		samples[i] = float64(dataBeforeEffect)
+		i += 1
+		i = i & (len(samples) - 1)
+		//
+
+		if (volume < c.Max) {
+			outputDevice.WriteData(sample)
+			continue
+		}
+
+		average := 0.0
+		for _, sample := range samples {
+			average += sample
+		}
+		average /= float64(len(samples))
+
+
+		delta := float64(dataBeforeEffect) - average
+		factor := c.Max / volume
+
+		// TODO: Decide log strategy
+		//
+		dataAfterEffect := float32(average + (delta * factor))
+		outputDevice.WriteData(audio.Sample{Value: dataAfterEffect, Volume: c.Max})
+	}
+}
+
+type UpwardCompressor struct {
+	Min float64
+	Factor float64
+	Samples int
+}
+
+func (c *UpwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
+	samples := make([]float64, c.Samples)
+	i := 0
+
+	for outputDevice.IsChannelOpen() {
+		sample := inputDevice.ReadData()
+		dataBeforeEffect, volume := sample.Value, sample.Volume
+		//
+		samples[i] = float64(dataBeforeEffect)
+		i += 1
+		i = i & (len(samples) - 1)
+		//
+
+		if (volume > c.Min) {
+			outputDevice.WriteData(sample)
+			continue
+		}
+
+		average := 0.0
+		for _, sample := range samples {
+			average += sample
+		}
+		average /= float64(len(samples))
+
+		//amp
+		delta := float64(dataBeforeEffect) - average
+		factor := c.Min / volume
+
+		dataAfterEffect := float32(average + (delta * factor))
+
+		// TODO: Decide log strategy
+		//
+		// state := "Above max"
+		// desiredState = Compressing
+
+		outputDevice.WriteData(audio.Sample{Value: dataAfterEffect, Volume: c.Min})
+	}
+}
+
 type NoiseGate struct {
 	Threshold float64
 	Samples int
