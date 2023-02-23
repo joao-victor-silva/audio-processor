@@ -42,7 +42,7 @@ type LogReg struct {
 }
 
 func (r LogReg) String() string {
-	return fmt.Sprint(r.Timestamp, "-> v: ", r.Volume, " avg: ", r.Average, " d: ", r.Delta, " f: ", r.Factor, " state: ", r.State, " b: ", r.Before, " a: ", r.After)
+	return fmt.Sprint(r.Timestamp, "-> state: ", r.State,  " volume: ", r.Volume, " factor: ", r.Factor, " before: ", r.Before, " after: ", r.After)
 }
 
 type Effect struct {
@@ -88,6 +88,7 @@ const (
 	Attack CompressorState = iota
 	Compressing
 	Release
+	Threshold
 
 	Nop
 )
@@ -95,41 +96,30 @@ const (
 type DownwardCompressor struct {
 	Max float64
 	Factor float64
-	Samples int
+	LogTail         []LogReg
+	LastLogRegIndex int
 }
 
 func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
-	samples := make([]float64, c.Samples)
-	i := 0
-
+	startTime := time.Now()
 	for outputDevice.IsChannelOpen() {
 		sample := inputDevice.ReadData()
 		dataBeforeEffect, volume := sample.Value, sample.Volume
-
-		//
-		samples[i] = float64(dataBeforeEffect)
-		i += 1
-		i = i & (len(samples) - 1)
-		//
 
 		if (volume < c.Max) {
 			outputDevice.WriteData(sample)
 			continue
 		}
 
-		average := 0.0
-		for _, sample := range samples {
-			average += sample
-		}
-		average /= float64(len(samples))
-
-
-		delta := float64(dataBeforeEffect) - average
 		factor := c.Max / volume
 
 		// TODO: Decide log strategy
-		//
-		dataAfterEffect := float32(average + (delta * factor))
+		dataAfterEffect := float32((float64(dataBeforeEffect) * factor))
+
+		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), State: "2 - Upward Compressor", Factor: Float64(factor), Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
+		c.LogTail[c.LastLogRegIndex] = logReg
+		c.LastLogRegIndex += 1
+		c.LastLogRegIndex = c.LastLogRegIndex & (len(c.LogTail) - 1)
 		outputDevice.WriteData(audio.Sample{Value: dataAfterEffect, Volume: c.Max})
 	}
 }
@@ -137,78 +127,57 @@ func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDev
 type UpwardCompressor struct {
 	Min float64
 	Factor float64
-	Samples int
+	LogTail         []LogReg
+	LastLogRegIndex int
 }
 
 func (c *UpwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
-	samples := make([]float64, c.Samples)
-	i := 0
-
+	startTime := time.Now()
 	for outputDevice.IsChannelOpen() {
 		sample := inputDevice.ReadData()
 		dataBeforeEffect, volume := sample.Value, sample.Volume
-		//
-		samples[i] = float64(dataBeforeEffect)
-		i += 1
-		i = i & (len(samples) - 1)
-		//
 
 		if (volume > c.Min) {
 			outputDevice.WriteData(sample)
 			continue
 		}
 
-		average := 0.0
-		for _, sample := range samples {
-			average += sample
-		}
-		average /= float64(len(samples))
-
-		//amp
-		delta := float64(dataBeforeEffect) - average
 		factor := c.Min / volume
 
-		dataAfterEffect := float32(average + (delta * factor))
-
 		// TODO: Decide log strategy
-		//
-		// state := "Above max"
-		// desiredState = Compressing
+		dataAfterEffect := float32((float64(dataBeforeEffect) * factor))
 
+		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), State: "2 - Upward Compressor", Factor: Float64(factor), Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
+		c.LogTail[c.LastLogRegIndex] = logReg
+		c.LastLogRegIndex += 1
+		c.LastLogRegIndex = c.LastLogRegIndex & (len(c.LogTail) - 1)
 		outputDevice.WriteData(audio.Sample{Value: dataAfterEffect, Volume: c.Min})
 	}
 }
 
 type NoiseGate struct {
 	Threshold float64
-	Samples int
+	LogTail         []LogReg
+	LastLogRegIndex int
 }
 
 func (n *NoiseGate) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
-	samples := make([]float64, n.Samples)
-	i := 0
+	startTime := time.Now()
 
 	for outputDevice.IsChannelOpen() {
 		sample := inputDevice.ReadData()
 		dataBeforeEffect, volume := sample.Value, sample.Volume
-		//
-		samples[i] = float64(dataBeforeEffect)
-		i += 1
-		i = i & (len(samples) - 1)
-		//
 
 		if (volume > n.Threshold) {
 			outputDevice.WriteData(sample)
 			continue
 		}
 
-		average := 0.0
-		for _, sample := range samples {
-			average += sample
-		}
-		average /= float64(len(samples))
-
-		outputDevice.WriteData(audio.Sample{Value: float32(average), Volume: float64(0.0)})
+		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), State: "1 - Noise gate", Before: Float32(dataBeforeEffect), After: Float32(0.0)}
+		n.LogTail[n.LastLogRegIndex] = logReg
+		n.LastLogRegIndex += 1
+		n.LastLogRegIndex = n.LastLogRegIndex & (len(n.LogTail) - 1)
+		outputDevice.WriteData(audio.Sample{Value: float32(0.0), Volume: float64(0.0)})
 	}
 }
 
