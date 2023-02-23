@@ -120,6 +120,7 @@ func (device *audioDevice) WriteSlice(dataArray []float32) {
 	}
 	average64 := float64(average) / volumeSamplesAmount
 
+	// Check if volume is on dB -> 4x can be 16x due to non linear progression
 	volume := 0.0
 	for _, s := range dataArray {
 		volume += math.Pow(float64(s)-average64, 2)
