@@ -126,6 +126,7 @@ func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDev
 
 type UpwardCompressor struct {
 	Min float64
+	Threshold float64
 	Factor float64
 	LogTail         []LogReg
 	LastLogRegIndex int
@@ -137,7 +138,7 @@ func (c *UpwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevic
 		sample := inputDevice.ReadData()
 		dataBeforeEffect, volume := sample.Value, sample.Volume
 
-		if (volume > c.Min) {
+		if (volume > c.Min || volume <= c.Threshold) {
 			outputDevice.WriteData(sample)
 			continue
 		}
