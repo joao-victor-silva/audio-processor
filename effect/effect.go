@@ -116,7 +116,7 @@ func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDev
 		// TODO: Decide log strategy
 		dataAfterEffect := float32((float64(dataBeforeEffect) * factor))
 
-		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), State: "2 - Upward Compressor", Factor: Float64(factor), Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
+		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), State: "3 - Downward Compressor", Factor: Float64(factor), Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
 		c.LogTail[c.LastLogRegIndex] = logReg
 		c.LastLogRegIndex += 1
 		c.LastLogRegIndex = c.LastLogRegIndex & (len(c.LogTail) - 1)
