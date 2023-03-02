@@ -143,10 +143,24 @@ func (c *UpwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevic
 			continue
 		}
 
-		factor := c.Min / volume
+
+		// factor := c.Min / c.Threshold
+		factor := c.Factor
+
+		delta := (c.Min - volume) / (c.Min - c.Threshold) // 0.0 -> 1.0
+		// Options
+		// delta := ((c.Min - volume) - c.Threshold) / c.Min  // 0.0 -> 1.0
+		// delta := (c.Min - volume) - c.Threshold/ (c.Min - c.Threshold) // 0.0 -> 1.0
+		// dataAfter := (1.0 + (delta * factor)) * float64(dataBeforeEffect) // Pode passar do minimo
+
+		// dataAfter := dataBeforeEffect * (float32(c.Factor) * float32(delta))
+
+
+		// volume -> c.Min | factor -> 0.0 (algo somado)
+		// volume -> c.Threshold | factor -> 100.0 (algo somado)
 
 		// TODO: Decide log strategy
-		dataAfterEffect := float32((float64(dataBeforeEffect) * factor))
+		dataAfterEffect := float32((1.0 + (delta * factor)) * float64(dataBeforeEffect))
 
 		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), State: "2 - Upward Compressor", Factor: Float64(factor), Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
 		c.LogTail[c.LastLogRegIndex] = logReg

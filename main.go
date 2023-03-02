@@ -55,18 +55,37 @@ func main() {
 	}
 
 	// compressor := effect.Effect{Min: *min, Max: *max, Threshold: *threshold, LogTail: make([]effect.LogReg, 4096), LastLogRegIndex: 0, Samples: 1024}
-	// defer (func() {
-	// 	for _, data := range compressor.LogTail[compressor.LastLogRegIndex:] {
-	// 		fmt.Println(data)
-	// 	}
-	// 	for _, data := range compressor.LogTail[:compressor.LastLogRegIndex] {
-	// 		fmt.Println(data)
-	// 	}
-	// })()
 
-	noiseGate := effect.NoiseGate{Threshold: *threshold, Samples: 1024}
-	upwardCompressor := effect.UpwardCompressor{Min: *min, Samples: 1024}
-	downwardCompressor := effect.DownwardCompressor{Max: *max, Samples: 1024}
+	fmt.Println("Min: ", *min)
+	fmt.Println("Max: ", *max)
+	fmt.Println("Threshold: ", *threshold)
+	noiseGate := effect.NoiseGate{Threshold: *threshold, LogTail: make([]effect.LogReg, 4096)}
+	defer (func() {
+		for _, data := range noiseGate.LogTail[noiseGate.LastLogRegIndex:] {
+			fmt.Println(data)
+		}
+		for _, data := range noiseGate.LogTail[:noiseGate.LastLogRegIndex] {
+			fmt.Println(data)
+		}
+	})()
+	upwardCompressor := effect.UpwardCompressor{Min: *min, Threshold: *threshold, Factor: 4.0, LogTail: make([]effect.LogReg, 4096)}
+	defer (func() {
+		for _, data := range upwardCompressor.LogTail[upwardCompressor.LastLogRegIndex:] {
+			fmt.Println(data)
+		}
+		for _, data := range upwardCompressor.LogTail[:upwardCompressor.LastLogRegIndex] {
+			fmt.Println(data)
+		}
+	})()
+	downwardCompressor := effect.DownwardCompressor{Max: *max, LogTail: make([]effect.LogReg, 4096)}
+	defer (func() {
+		for _, data := range downwardCompressor.LogTail[downwardCompressor.LastLogRegIndex:] {
+			fmt.Println(data)
+		}
+		for _, data := range downwardCompressor.LogTail[:downwardCompressor.LastLogRegIndex] {
+			fmt.Println(data)
+		}
+	})()
 
 	raw := audio.NewProcessor("data.bin")
 	defer raw.Close()
