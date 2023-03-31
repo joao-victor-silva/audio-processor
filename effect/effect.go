@@ -98,6 +98,7 @@ type DownwardCompressor struct {
 	Factor float64
 	LogTail         []LogReg
 	LastLogRegIndex int
+	MaxExpected float64
 }
 
 func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
@@ -110,13 +111,21 @@ func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDev
 			outputDevice.WriteData(sample)
 			continue
 		}
+		if (volume > c.MaxExpected) {
+			outputDevice.WriteData(audio.Sample{Value: 0.0, Volume: 0.0})
+			continue
+		}
 
-		factor := c.Max / volume
+		factor := c.Factor
+
+		// The MaxExpected and Max ratio cause the big problem to reduce the volume
+		// due to it have higher order of magnitude
+		delta := (volume - c.Max) / (c.MaxExpected - c.Max) // 0.0 -> 1.0
 
 		// TODO: Decide log strategy
-		dataAfterEffect := float32((float64(dataBeforeEffect) * factor))
+		dataAfterEffect := float32((1.0 - (delta * factor)) * float64(dataBeforeEffect))
 
-		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), State: "3 - Downward Compressor", Factor: Float64(factor), Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
+		logReg := LogReg{Timestamp: time.Now().Sub(startTime), Volume: Float64(volume), State: "3 - Downward Compressor", Factor: Float64(1.0 - (factor * delta)), Before: Float32(dataBeforeEffect), After: Float32(dataAfterEffect)}
 		c.LogTail[c.LastLogRegIndex] = logReg
 		c.LastLogRegIndex += 1
 		c.LastLogRegIndex = c.LastLogRegIndex & (len(c.LogTail) - 1)
