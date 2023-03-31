@@ -21,6 +21,9 @@ func main() {
 	threshold := flag.Float64("threshold", 0.00012, "threshold")
 	min := flag.Float64("min", 0.02, "min")
 	max := flag.Float64("max", 0.8, "max")
+
+	inputId := flag.Int("inputId", 0, "inputId")
+	outputId := flag.Int("outputId", 0, "outputId")
 	// max := flag.Float64("max", 1.0, "max")
 	// min := flag.Float64("min", -1.0, "min")
 	flag.Parse()
@@ -36,14 +39,14 @@ func main() {
 	fmt.Println("\nOutput devices:")
 	sdlManager.ListAudioDevice(false)
 
-	mic, err := sdlManager.NewAudioDevice(true)
+	mic, err := sdlManager.NewAudioDevice(*inputId, true)
 	if err != nil {
 		panic("Counldn't open the mic device. " + err.Error())
 	}
 	defer mic.Close()
 	mic.Unpause()
 
-	headphone, err := sdlManager.NewAudioDevice(false)
+	headphone, err := sdlManager.NewAudioDevice(*outputId, false)
 	if err != nil {
 		panic("Counldn't open the headphone device" + err.Error())
 	}
@@ -77,7 +80,7 @@ func main() {
 			fmt.Println(data)
 		}
 	})()
-	downwardCompressor := effect.DownwardCompressor{Max: *max, LogTail: make([]effect.LogReg, 4096)}
+	downwardCompressor := effect.DownwardCompressor{Max: *max, MaxExpected: 0.00200, Factor: 0.95, LogTail: make([]effect.LogReg, 4096)}
 	defer (func() {
 		for _, data := range downwardCompressor.LogTail[downwardCompressor.LastLogRegIndex:] {
 			fmt.Println(data)
