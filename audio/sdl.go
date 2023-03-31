@@ -32,14 +32,14 @@ type sdl struct {
 
 type SDL interface {
 	Close() error
-	NewAudioDevice(bool) (AudioDevice, error)
+	NewAudioDevice(int, bool) (AudioDevice, error)
 	ListAudioDevice(bool) error
 }
 
 // TODO: Create sink and source interface as a subset of audio device, read-only
 // and write-only
 
-func (self *sdl) NewAudioDevice(isCapture bool) (AudioDevice, error) {
+func (self *sdl) NewAudioDevice(deviceId int, isCapture bool) (AudioDevice, error) {
 	if !self.initialized {
 		err := fmt.Errorf("SDL isn't initialized")
 		return nil, err
@@ -81,9 +81,9 @@ device.data = &data
 
 	var deviceName *C.char
 	if isCapture {
-		deviceName = C.SDL_GetAudioDeviceName(0, toCInt(isCapture))
+		deviceName = C.SDL_GetAudioDeviceName(C.int(deviceId), toCInt(isCapture))
 	} else {
-		deviceName = C.SDL_GetAudioDeviceName(0, toCInt(isCapture))
+		deviceName = C.SDL_GetAudioDeviceName(C.int(deviceId), toCInt(isCapture))
 	}
 
 	device.id = C.SDL_OpenAudioDevice(deviceName, toCInt(isCapture), &desired, &obtained, C.SDL_AUDIO_ALLOW_ANY_CHANGE)
