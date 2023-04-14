@@ -356,3 +356,30 @@ func (l *LevelLogger) Print() {
 	}
 }
 
+type LevelNormalizer struct {
+	Min float64
+	Max float64
+	Dynamic bool
+}
+
+func (l *LevelNormalizer) Process(inputDevice, outputDevice audio.AudioProcessor) {
+	delta := l.Max - l.Min
+
+	for outputDevice.IsChannelOpen() {
+		sample := inputDevice.ReadData()
+		value, volume := sample.Value, sample.Volume
+
+		if volume < l.Min {
+			volume = l.Min
+		}
+		volume -= l.Min
+
+		if volume > l.Max {
+			volume = l.Max
+		}
+
+		volume /= delta
+
+		outputDevice.WriteData(audio.Sample{Value: value, Volume: volume})
+	}
+}
