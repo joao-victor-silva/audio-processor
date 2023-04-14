@@ -13,6 +13,7 @@ import (
 	_ "io"
 	"math"
 	_ "os"
+	"sort"
 	"time"
 
 	"github.com/joao-victor-silva/audio-processor/audio"
@@ -42,7 +43,7 @@ type LogReg struct {
 }
 
 func (r LogReg) String() string {
-	return fmt.Sprint(r.Timestamp, "-> state: ", r.State,  " volume: ", r.Volume, " factor: ", r.Factor, " before: ", r.Before, " after: ", r.After)
+	return fmt.Sprint(r.Timestamp, "-> state: ", r.State, " volume: ", r.Volume, " factor: ", r.Factor, " before: ", r.Before, " after: ", r.After)
 }
 
 type Effect struct {
@@ -84,6 +85,7 @@ type Copy struct{}
 // }
 
 type CompressorState int
+
 const (
 	Attack CompressorState = iota
 	Compressing
@@ -94,11 +96,11 @@ const (
 )
 
 type DownwardCompressor struct {
-	Max float64
-	Factor float64
+	Max             float64
+	Factor          float64
 	LogTail         []LogReg
 	LastLogRegIndex int
-	MaxExpected float64
+	MaxExpected     float64
 }
 
 func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevice audio.AudioProcessor) {
@@ -107,11 +109,11 @@ func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDev
 		sample := inputDevice.ReadData()
 		dataBeforeEffect, volume := sample.Value, sample.Volume
 
-		if (volume < c.Max) {
+		if volume < c.Max {
 			outputDevice.WriteData(sample)
 			continue
 		}
-		if (volume > c.MaxExpected) {
+		if volume > c.MaxExpected {
 			outputDevice.WriteData(audio.Sample{Value: 0.0, Volume: 0.0})
 			continue
 		}
@@ -134,9 +136,9 @@ func (c *DownwardCompressor) Process(inputDevice audio.AudioProcessor, outputDev
 }
 
 type UpwardCompressor struct {
-	Min float64
-	Threshold float64
-	Factor float64
+	Min             float64
+	Threshold       float64
+	Factor          float64
 	LogTail         []LogReg
 	LastLogRegIndex int
 }
@@ -147,11 +149,10 @@ func (c *UpwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevic
 		sample := inputDevice.ReadData()
 		dataBeforeEffect, volume := sample.Value, sample.Volume
 
-		if (volume > c.Min || volume <= c.Threshold) {
+		if volume > c.Min || volume <= c.Threshold {
 			outputDevice.WriteData(sample)
 			continue
 		}
-
 
 		// factor := c.Min / c.Threshold
 		factor := c.Factor
@@ -163,7 +164,6 @@ func (c *UpwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevic
 		// dataAfter := (1.0 + (delta * factor)) * float64(dataBeforeEffect) // Pode passar do minimo
 
 		// dataAfter := dataBeforeEffect * (float32(c.Factor) * float32(delta))
-
 
 		// volume -> c.Min | factor -> 0.0 (algo somado)
 		// volume -> c.Threshold | factor -> 100.0 (algo somado)
@@ -180,7 +180,7 @@ func (c *UpwardCompressor) Process(inputDevice audio.AudioProcessor, outputDevic
 }
 
 type NoiseGate struct {
-	Threshold float64
+	Threshold       float64
 	LogTail         []LogReg
 	LastLogRegIndex int
 }
@@ -192,7 +192,7 @@ func (n *NoiseGate) Process(inputDevice audio.AudioProcessor, outputDevice audio
 		sample := inputDevice.ReadData()
 		dataBeforeEffect, volume := sample.Value, sample.Volume
 
-		if (volume > n.Threshold) {
+		if volume > n.Threshold {
 			outputDevice.WriteData(sample)
 			continue
 		}
@@ -215,7 +215,6 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 	// alpha := 1 / effect.Attack
 	effectState := Nop
 
-
 	for outputDevice.IsChannelOpen() {
 		// begin := time.Now()
 		sample := inputDevice.ReadData()
@@ -233,7 +232,7 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 		var factor float64
 		var state string
 
-		var desiredState CompressorState	
+		var desiredState CompressorState
 
 		switch {
 		case volume < effect.Threshold:
@@ -262,7 +261,6 @@ func (effect *Effect) Process(inputDevice audio.AudioProcessor, outputDevice aud
 			desiredState = Compressing
 		}
 		_ = state
-
 
 		switch {
 		case effectState == Nop && desiredState != Nop:
@@ -327,3 +325,34 @@ func (c *Copy) Process(inputDevice audio.AudioProcessor, outputDevice audio.Audi
 		// fmt.Printf("%v\n", elapsed.String())
 	}
 }
+
+type LevelLogger struct {
+	Level map[int]int
+}
+
+func (l *LevelLogger) Process(inputDevice, outputDevice audio.AudioProcessor) {
+	l.Level = make(map[int]int)
+	for outputDevice.IsChannelOpen() {
+		sample := inputDevice.ReadData()
+		_, volume := sample.Value, sample.Volume
+
+		l.Level[int(volume*100000)] += 1
+		outputDevice.WriteData(sample)
+	}
+}
+
+func (l *LevelLogger) Print() {
+	size := len(l.Level)
+	levels := make([]int, 0, size)
+
+	for level := range l.Level {
+		levels = append(levels, level)
+	}
+
+	sort.Ints(levels)
+
+	for _, level := range levels {
+		fmt.Println(float64(level) / 100000.0, " -> ", l.Level[level])
+	}
+}
+
