@@ -89,25 +89,37 @@ func main() {
 			fmt.Println(data)
 		}
 	})()
+	levelLogger := effect.LevelLogger{}
+	defer levelLogger.Print()
+
+	levelNormalizer := effect.LevelNormalizer{Min: 0.000007, Max: 0.00300, Dynamic: false}
 
 	raw := audio.NewProcessor("data.bin")
 	defer raw.Close()
 
-	copyFromMic := effect.Copy{}
-	go copyFromMic.Process(mic, raw)
+	normalized := audio.NewProcessor("normalized.bin")
+	defer normalized.Close()
 
 	processed := audio.NewProcessor("processed-data.bin")
 	defer processed.Close()
-	// go compressor.Process(raw, processed)
+
+	copyFromMic := effect.Copy{}
+
 	noiseGateProcessor := audio.NewProcessor("noisegate-data.bin")
 	defer noiseGateProcessor.Close()
 
-	upwardCompressorProcessor := audio.NewProcessor("upward-data.bin")
-	defer upwardCompressorProcessor.Close()
+	go copyFromMic.Process(mic, raw)
+	go levelNormalizer.Process(raw, normalized)
+	go noiseGate.Process(normalized, noiseGateProcessor)
+	go levelLogger.Process(noiseGateProcessor, processed)
 
-	go noiseGate.Process(raw, noiseGateProcessor)
-	go upwardCompressor.Process(noiseGateProcessor, upwardCompressorProcessor)
-	go downwardCompressor.Process(upwardCompressorProcessor, processed)
+	// // go compressor.Process(raw, processed)
+	//
+	// upwardCompressorProcessor := audio.NewProcessor("upward-data.bin")
+	// defer upwardCompressorProcessor.Close()
+	//
+	// go upwardCompressor.Process(noiseGateProcessor, upwardCompressorProcessor)
+	// go downwardCompressor.Process(upwardCompressorProcessor, processed)
 
 	copyToHeadphone := effect.Copy{}
 	go copyToHeadphone.Process(processed, headphone)
