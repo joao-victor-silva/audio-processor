@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/joao-victor-silva/audio-processor/audio"
 	"github.com/joao-victor-silva/audio-processor/effect"
@@ -92,7 +93,7 @@ func main() {
 	levelLogger := effect.LevelLogger{}
 	defer levelLogger.Print()
 
-	levelNormalizer := effect.LevelNormalizer{Min: 0.000007, Max: 0.00300, Dynamic: false}
+	levelNormalizer := effect.LevelNormalizer{Min: 0.000007, Max: 0.00100, Dynamic: true, WaitTime: time.Second}
 
 	raw := audio.NewProcessor("data.bin")
 	defer raw.Close()

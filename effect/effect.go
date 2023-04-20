@@ -352,22 +352,73 @@ func (l *LevelLogger) Print() {
 	sort.Ints(levels)
 
 	for _, level := range levels {
-		fmt.Println(float64(level) / 100000.0, " -> ", l.Level[level])
+		fmt.Println(float64(level)/100000.0, " -> ", l.Level[level])
 	}
 }
 
+type VolumeEvent struct {
+	volume    float64
+	timestamp time.Time
+	next      *VolumeEvent
+}
+
 type LevelNormalizer struct {
-	Min float64
-	Max float64
+	Min      float64
+	Max      float64
+	WaitTime time.Duration
+
 	Dynamic bool
 }
 
 func (l *LevelNormalizer) Process(inputDevice, outputDevice audio.AudioProcessor) {
 	delta := l.Max - l.Min
 
+	var FirstVolume *VolumeEvent
+	var LastVolume *VolumeEvent
+
 	for outputDevice.IsChannelOpen() {
 		sample := inputDevice.ReadData()
 		value, volume := sample.Value, sample.Volume
+
+		if l.Dynamic {
+			updateVolume := false
+			now := time.Now()
+			for FirstVolume != nil && FirstVolume.timestamp.Before(now.Add(-l.WaitTime)) {
+				FirstVolume = FirstVolume.next
+				updateVolume = true
+			}
+
+			// Create or update last
+			if LastVolume != nil && volume == LastVolume.volume {
+				LastVolume.timestamp = now
+			} else {
+				event := VolumeEvent{volume: volume, timestamp: now}
+				if FirstVolume == nil {
+					FirstVolume = &event
+				} else if LastVolume != nil {
+					LastVolume.next = &event
+				}
+				LastVolume = &event
+
+				updateVolume = true
+			}
+
+			if updateVolume {
+				var volumeSum float64
+				volumeListSize := 0
+				for tmp := FirstVolume; tmp != nil; tmp = tmp.next {
+					volumeSum += tmp.volume
+					volumeListSize += 1
+				}
+
+				if volumeListSize == 0 {
+					volumeListSize = 1
+				}
+
+				l.Max = volumeSum / float64(volumeListSize)
+				delta = l.Max - l.Min
+			}
+		}
 
 		if volume < l.Min {
 			volume = l.Min
