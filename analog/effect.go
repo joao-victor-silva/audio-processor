@@ -1,5 +1,5 @@
 package analog
 
 type Effect interface {
-	Process([]Signal) Signal
+	Process([]Signal) []Signal
 }
