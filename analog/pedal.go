@@ -29,3 +29,22 @@ type BasePedal struct {
 	isOn bool
 }
 
+func (p *BasePedal) GetInputJack() []InputJack {
+	return p.inputs
+}
+
+func (p *BasePedal) GetOutputJack() []OutputJack {
+	return p.outputs
+}
+
+func (p *BasePedal) Toggle() {
+	p.isOn = !p.isOn
+}
+
+func (p *BasePedal) Run() {
+	if (p.isOn) {
+		// call effect
+	} else {
+		// passthrough
+	}
+}
