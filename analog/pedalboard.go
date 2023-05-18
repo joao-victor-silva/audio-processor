@@ -4,7 +4,7 @@ import "errors"
 
 type PedalBoard interface{
 	AddPedal(pedal Pedal, index int) error
-	Toggle(index int)
+	Toggle(index int) error
 }
 
 type pedalBoard struct {
@@ -58,10 +58,12 @@ func (p *pedalBoard) AddPedal(pedal Pedal, index int) error {
 	return nil
 }
 
-func (p *pedalBoard) Toggle(index int) {
-	if (index > len(p.pedals)) {
-		panic("Index out of bounds")
+func (p *pedalBoard) Toggle(index int) error {
+	if (index > len(p.pedals) || index < 0) {
+		return errors.New("Index out of bounds")
 	}
 
 	p.pedals[index].Toggle()
+
+	return nil
 }
