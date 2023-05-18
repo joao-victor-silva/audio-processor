@@ -1,7 +1,9 @@
 package analog
 
+import "errors"
+
 type PedalBoard interface{
-	AddPedal(pedal Pedal, index int)
+	AddPedal(pedal Pedal, index int) error
 	Toggle(index int)
 }
 
@@ -18,12 +20,12 @@ func NewPedalBoard() PedalBoard {
 	}
 }
 
-func (p *pedalBoard) AddPedal(pedal Pedal, index int) {
+func (p *pedalBoard) AddPedal(pedal Pedal, index int) error {
 	var input Jack
 	var output Jack
 
-	if (index > len(p.pedals)) {
-		panic("Index out of bounds")
+	if (index > len(p.pedals) || index < 0) {
+		return errors.New("Index out of bounds")
 	}
 
 	if (index == 0) {
@@ -35,7 +37,7 @@ func (p *pedalBoard) AddPedal(pedal Pedal, index int) {
 	if (index == len(p.pedals)) {
 		output = p.output
 	} else {
-		output = p.pedals[index-1].GetInputJack()[0]
+		output = p.pedals[index].GetInputJack()[0]
 	}
 
 	inputWire := make(Wire)
@@ -52,6 +54,8 @@ func (p *pedalBoard) AddPedal(pedal Pedal, index int) {
 	copy(p.pedals[index+1:], p.pedals[index:])
 
 	p.pedals[index] = pedal
+
+	return nil
 }
 
 func (p *pedalBoard) Toggle(index int) {

@@ -24,7 +24,12 @@ type OutputJack interface {
 // }
 
 func (j *jack) Connect(wire Wire) {
-	_, open := <- j.wire
+	open := true
+
+	select {
+	case _, open = <-j.wire:
+	default:
+	}
 	if open {
 		close(j.wire)
 	}
@@ -33,7 +38,7 @@ func (j *jack) Connect(wire Wire) {
 }
 
 func (j *jack) ReceiveSignal() Signal {
-	return <- j.wire
+	return <-j.wire
 }
 
 func (j *jack) SendSignal(signal Signal) {
