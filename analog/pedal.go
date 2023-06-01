@@ -4,29 +4,30 @@ type Pedal interface {
 	GetInputJack() []InputJack
 	GetOutputJack() []OutputJack
 	Toggle()
+	Run()
 }
 
 func NewPedal(effect Effect) Pedal {
 	return &BasePedal{
-		effect: effect,
-		inputs: make([]InputJack, 1),
-		outputs: make([]OutputJack, 1),
+		effect:  effect,
+		inputs: []InputJack{NewInputJack()},
+		outputs: []OutputJack{NewOutputJack()},
 	}
 }
 
 func NewDummyPedal() Pedal {
 	return &BasePedal{
-		effect: &DummyEffect{},
-		inputs: make([]InputJack, 1),
-		outputs: make([]OutputJack, 1),
+		effect:  &DummyEffect{},
+		inputs: []InputJack{NewInputJack()},
+		outputs: []OutputJack{NewOutputJack()},
 	}
 }
 
 type BasePedal struct {
-	effect Effect
-	inputs []InputJack
+	effect  Effect
+	inputs  []InputJack
 	outputs []OutputJack
-	isOn bool
+	isOn    bool
 }
 
 func (p *BasePedal) GetInputJack() []InputJack {
@@ -41,10 +42,14 @@ func (p *BasePedal) Toggle() {
 	p.isOn = !p.isOn
 }
 
+// TODO: define strategy for multiple input and outputs "channels" (a.k.a. jacks)
 func (p *BasePedal) Run() {
-	if (p.isOn) {
-		// call effect
-	} else {
-		// passthrough
+	bufferSize := cap(p.inputs[0].GetWire())
+
+	signals := p.inputs[0].BufferedReceiveSignal(bufferSize)
+	if p.isOn {
+		signals = p.effect.Process(signals)
 	}
+
+	p.outputs[0].BufferedSendSignal(signals)
 }

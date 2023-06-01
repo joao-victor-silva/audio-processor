@@ -26,6 +26,9 @@ func (p *testPedal) Toggle() {
 	p.isOn = !p.isOn
 }
 
+func (p *testPedal) Run() {
+}
+
 
 func TestAddPedal(t *testing.T) {
 	pedalboard := NewPedalBoard().(*pedalBoard)
