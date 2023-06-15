@@ -5,6 +5,8 @@ import "errors"
 type PedalBoard interface{
 	AddPedal(pedal Pedal, index int) error
 	Toggle(index int) error
+	InputConnect(wire Wire)
+	OutputConnect(wire Wire)
 }
 
 type pedalBoard struct {
@@ -66,4 +68,13 @@ func (p *pedalBoard) Toggle(index int) error {
 	p.pedals[index].Toggle()
 
 	return nil
+}
+
+
+func (p *pedalBoard) InputConnect(wire Wire) {
+	p.input.Connect(wire)
+}
+
+func (p *pedalBoard) OutputConnect(wire Wire) {
+	p.output.Connect(wire)
 }
