@@ -10,7 +10,7 @@ type Pedal interface {
 func NewPedal(effect Effect) Pedal {
 	return &BasePedal{
 		effect:  effect,
-		inputs: []InputJack{NewInputJack()},
+		inputs:  []InputJack{NewInputJack()},
 		outputs: []OutputJack{NewOutputJack()},
 	}
 }
@@ -18,7 +18,7 @@ func NewPedal(effect Effect) Pedal {
 func NewDummyPedal() Pedal {
 	return &BasePedal{
 		effect:  &DummyEffect{},
-		inputs: []InputJack{NewInputJack()},
+		inputs:  []InputJack{NewInputJack()},
 		outputs: []OutputJack{NewOutputJack()},
 	}
 }
@@ -44,12 +44,14 @@ func (p *BasePedal) Toggle() {
 
 // TODO: define strategy for multiple input and outputs "channels" (a.k.a. jacks)
 func (p *BasePedal) Run() {
-	bufferSize := cap(p.inputs[0].GetWire())
+	for {
+		bufferSize := cap(p.inputs[0].GetWire())
 
-	signals := p.inputs[0].BufferedReceiveSignal(bufferSize)
-	if p.isOn {
-		signals = p.effect.Process(signals)
+		signals := p.inputs[0].BufferedReceiveSignal(bufferSize)
+		if p.isOn {
+			signals = p.effect.Process(signals)
+		}
+
+		p.outputs[0].BufferedSendSignal(signals)
 	}
-
-	p.outputs[0].BufferedSendSignal(signals)
 }

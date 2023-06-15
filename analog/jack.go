@@ -65,13 +65,11 @@ func (j *jack) SendSignal(signal Signal) {
 	j.wire <- signal
 }
 
-
 func (j *jack) BufferedSendSignal(signals []Signal) {
 	for _, signal := range signals {
 		j.wire <- signal
 	}
 }
-
 
 func NewInputJack() InputJack {
 	return &jack{wire: make(Wire)}
