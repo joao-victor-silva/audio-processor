@@ -15,6 +15,7 @@ static SDL_AudioCallback get_fn_readptr() {
 */
 import "C"
 import (
+	"encoding/binary"
 	"math"
 	"sync"
 )
@@ -49,6 +50,12 @@ type AudioDevice interface {
 type Sample struct {
 	Value  float32
 	Volume float64
+}
+
+func (s *Sample) ToBytes() []byte {
+	binaryData := make([]byte, 4)
+	binary.LittleEndian.PutUint32(binaryData, math.Float32bits(s.Value))
+	return binaryData
 }
 
 func (device *audioDevice) Pause() {
