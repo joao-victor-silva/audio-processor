@@ -1,3 +1,5 @@
 package analog
 
-type Signal interface{}
+type Signal interface{
+	ToBytes() []byte
+}
