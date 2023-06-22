@@ -51,12 +51,12 @@ func (j *jack) ReceiveSignal() Signal {
 func (j *jack) BufferedReceiveSignal(size int) []Signal {
 	result := make([]Signal, 0, size)
 	for i := 0; i < size; i++ {
-		var value Signal
 		select {
-		case value = <-j.wire:
+		case value := <-j.wire:
+			result = append(result, value)
 		default:
+			return result
 		}
-		result = append(result, value)
 	}
 	return result
 }
