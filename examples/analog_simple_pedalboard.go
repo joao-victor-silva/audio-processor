@@ -66,6 +66,7 @@ func main() {
 	pedalBoard.InputConnect(micOutput.GetWire())
 	pedalBoard.OutputConnect(headphoneInput.GetWire())
 
+	recordPedal.Toggle()
 	go recordPedal.Run()
 
 	mainThreadSignals := make(chan os.Signal, 1)
