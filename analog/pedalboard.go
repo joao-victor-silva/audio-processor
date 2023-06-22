@@ -73,8 +73,14 @@ func (p *pedalBoard) Toggle(index int) error {
 
 func (p *pedalBoard) InputConnect(wire Wire) {
 	p.input.Connect(wire)
+	if len(p.pedals) > 0 {
+		p.pedals[0].GetInputJack()[0].Connect(wire)
+	}
 }
 
 func (p *pedalBoard) OutputConnect(wire Wire) {
 	p.output.Connect(wire)
+	if len(p.pedals) > 0 {
+		p.pedals[len(p.pedals) - 1].GetOutputJack()[0].Connect(wire)
+	}
 }
