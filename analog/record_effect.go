@@ -28,7 +28,6 @@ func (e *RecorderEffect) Process(signals []Signal) []Signal {
 }
 
 func NewRecorderEffect(filepath string, maxBufferSize int) *RecorderEffect {
-
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		panic(fmt.Errorf("Couldn't open %s file", filepath))
