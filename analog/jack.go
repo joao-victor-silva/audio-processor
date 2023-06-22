@@ -72,9 +72,9 @@ func (j *jack) BufferedSendSignal(signals []Signal) {
 }
 
 func NewInputJack() InputJack {
-	return &jack{wire: make(Wire)}
+	return &jack{wire: make(Wire, 1024)}
 }
 
 func NewOutputJack() OutputJack {
-	return &jack{wire: make(Wire)}
+	return &jack{wire: make(Wire, 1024)}
 }

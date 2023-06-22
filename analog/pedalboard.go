@@ -42,8 +42,8 @@ func (p *pedalBoard) AddPedal(pedal Pedal, index int) error {
 		output = p.pedals[index].GetInputJack()[0]
 	}
 
-	inputWire := make(Wire)
-	outputWire := make(Wire)
+	inputWire := make(Wire, 1024)
+	outputWire := make(Wire, 1024)
 
 	output.Connect(outputWire)
 	pedal.GetOutputJack()[0].Connect(outputWire)
