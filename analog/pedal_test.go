@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type testEffect struct {}
+type testEffect struct{}
 
 func (e *testEffect) Process(input []Signal) []Signal {
 	output := make([]Signal, 0, len(input))
@@ -35,7 +35,8 @@ func TestPedalPassthrough(t *testing.T) {
 	pedal.GetInputJack()[0].Connect(inputWire)
 	pedal.GetOutputJack()[0].Connect(outputWire)
 
-	pedal.Run()
+	shouldRun := true
+	go pedal.Run(&shouldRun)
 
 	for i := range inputSignal {
 		result := <- pedal.GetOutputJack()[0].GetWire()
@@ -43,8 +44,9 @@ func TestPedalPassthrough(t *testing.T) {
 		require.True(t, ok)
 		require.Equal(t, value, float32(i))
 	}
-}
 
+	shouldRun = false
+}
 
 func TestPedalEffect(t *testing.T) {
 	pedal := NewPedal(&testEffect{})
@@ -60,7 +62,8 @@ func TestPedalEffect(t *testing.T) {
 	pedal.GetOutputJack()[0].Connect(outputWire)
 
 	pedal.Toggle()
-	pedal.Run()
+	shouldRun := true
+	go pedal.Run(&shouldRun)
 
 	for i := range inputSignal  {
 		result := <- pedal.GetOutputJack()[0].GetWire()
@@ -68,4 +71,6 @@ func TestPedalEffect(t *testing.T) {
 		require.True(t, ok)
 		require.Equal(t, value, float32(i + 10))
 	}
+
+	shouldRun = false
 }

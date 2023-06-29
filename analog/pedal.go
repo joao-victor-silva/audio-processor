@@ -4,7 +4,7 @@ type Pedal interface {
 	GetInputJack() []InputJack
 	GetOutputJack() []OutputJack
 	Toggle()
-	Run()
+	Run(shouldRun *bool)
 }
 
 func NewPedal(effect Effect) Pedal {
@@ -43,8 +43,8 @@ func (p *BasePedal) Toggle() {
 }
 
 // TODO: define strategy for multiple input and outputs "channels" (a.k.a. jacks)
-func (p *BasePedal) Run() {
-	for {
+func (p *BasePedal) Run(shouldRun *bool) {
+	for *shouldRun {
 		bufferSize := cap(p.inputs[0].GetWire())
 
 		signals := p.inputs[0].BufferedReceiveSignal(bufferSize)

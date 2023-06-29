@@ -26,7 +26,7 @@ func (p *testPedal) Toggle() {
 	p.isOn = !p.isOn
 }
 
-func (p *testPedal) Run() {
+func (p *testPedal) Run(shouldRun *bool) {
 }
 
 
