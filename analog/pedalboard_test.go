@@ -94,8 +94,8 @@ func TestUpdateJackConnections(t *testing.T) {
 	pedalboard.AddPedal(pedalLast, 1)
 
 	require.Equal(t, 2, len(pedalboard.pedals))
-	require.Equal(t, pedalOne, pedalboard.pedals[0])
-	require.Equal(t, pedalLast, pedalboard.pedals[1])
+	require.Equal(t, pedalOne, pedalboard.pedals[0].Pedal)
+	require.Equal(t, pedalLast, pedalboard.pedals[1].Pedal)
 
 	require.Equal(t, 1, len(pedalOne.inputs))
 	require.Equal(t, 1, len(pedalOne.outputs))
@@ -116,9 +116,9 @@ func TestUpdateJackConnections(t *testing.T) {
 	pedalboard.AddPedal(newPedalFirst, 0)
 
 	require.Equal(t, 3, len(pedalboard.pedals))
-	require.Equal(t, newPedalFirst, pedalboard.pedals[0])
-	require.Equal(t, pedalOne, pedalboard.pedals[1])
-	require.Equal(t, pedalLast, pedalboard.pedals[2])
+	require.Equal(t, newPedalFirst, pedalboard.pedals[0].Pedal)
+	require.Equal(t, pedalOne, pedalboard.pedals[1].Pedal)
+	require.Equal(t, pedalLast, pedalboard.pedals[2].Pedal)
 
 	require.Equal(t, 1, len(pedalOne.inputs))
 	require.Equal(t, 1, len(pedalOne.outputs))

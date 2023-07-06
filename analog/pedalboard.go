@@ -2,6 +2,11 @@ package analog
 
 import "errors"
 
+type connectedPedal struct {
+	Pedal Pedal
+	ShouldRun *bool
+}
+
 type PedalBoard interface{
 	AddPedal(pedal Pedal, index int) error
 	Toggle(index int) error
@@ -12,7 +17,7 @@ type PedalBoard interface{
 type pedalBoard struct {
 	input InputJack
 	output OutputJack
-	pedals []Pedal
+	pedals []*connectedPedal
 }
 
 func NewPedalBoard() PedalBoard {
@@ -33,13 +38,13 @@ func (p *pedalBoard) AddPedal(pedal Pedal, index int) error {
 	if (index == 0) {
 		input = p.input
 	} else {
-		input = p.pedals[index-1].GetOutputJack()[0]
+		input = p.pedals[index-1].Pedal.GetOutputJack()[0]
 	}
 
 	if (index == len(p.pedals)) {
 		output = p.output
 	} else {
-		output = p.pedals[index].GetInputJack()[0]
+		output = p.pedals[index].Pedal.GetInputJack()[0]
 	}
 
 	inputWire := make(Wire, 1024)
@@ -55,7 +60,10 @@ func (p *pedalBoard) AddPedal(pedal Pedal, index int) error {
 	p.pedals = append(p.pedals, nil)
 	copy(p.pedals[index+1:], p.pedals[index:])
 
-	p.pedals[index] = pedal
+	shouldRun := true
+	connectedPedal := connectedPedal{Pedal: pedal, ShouldRun: &shouldRun}
+	p.pedals[index] = &connectedPedal
+	go pedal.Run(connectedPedal.ShouldRun)
 
 	return nil
 }
@@ -65,7 +73,7 @@ func (p *pedalBoard) Toggle(index int) error {
 		return errors.New("Index out of bounds")
 	}
 
-	p.pedals[index].Toggle()
+	p.pedals[index].Pedal.Toggle()
 
 	return nil
 }
@@ -74,13 +82,13 @@ func (p *pedalBoard) Toggle(index int) error {
 func (p *pedalBoard) InputConnect(wire Wire) {
 	p.input.Connect(wire)
 	if len(p.pedals) > 0 {
-		p.pedals[0].GetInputJack()[0].Connect(wire)
+		p.pedals[0].Pedal.GetInputJack()[0].Connect(wire)
 	}
 }
 
 func (p *pedalBoard) OutputConnect(wire Wire) {
 	p.output.Connect(wire)
 	if len(p.pedals) > 0 {
-		p.pedals[len(p.pedals) - 1].GetOutputJack()[0].Connect(wire)
+		p.pedals[len(p.pedals) - 1].Pedal.GetOutputJack()[0].Connect(wire)
 	}
 }
