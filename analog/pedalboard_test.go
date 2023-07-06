@@ -44,9 +44,11 @@ func TestAddPedal(t *testing.T) {
 	require.Equal(t, 1, len(pedalboard.pedals))
 
 	require.Equal(t, 1, len(pedal.inputs))
+	// TODO: check this comparison after the connect input/output pedalboard finctons
 	require.Equal(t, pedalboard.input, pedal.inputs[0])
 
 	require.Equal(t, 1, len(pedal.outputs))
+	// TODO: check this comparison after the connect input/output pedalboard finctons
 	require.Equal(t, pedalboard.output, pedal.outputs[0])
 }
 
@@ -127,4 +129,39 @@ func TestUpdateJackConnections(t *testing.T) {
 	require.Equal(t, 1, len(newPedalFirst.outputs))
 	require.Equal(t, pedalboard.input, newPedalFirst.inputs[0])
 	require.Equal(t, pedalOne.inputs[0], newPedalFirst.outputs[0])
+}
+
+func TestRemovePedal(t *testing.T) {
+	pedalboard := NewPedalBoard().(*pedalBoard)
+
+	pedal := &testPedal{
+		inputs: []InputJack{NewInputJack()},
+		outputs: []OutputJack{NewOutputJack()},
+		isOn: false,
+	}
+	
+	pedalboard.AddPedal(pedal, 0)
+	pedalboard.AddPedal(pedal, 1)
+
+	require.Equal(t, 2, len(pedalboard.pedals))
+
+	pedalboard.RemovePedal(0)
+	require.Equal(t, 1, len(pedalboard.pedals))
+	// TODO: also check if the input/output connections were change successfully
+
+	pedalboard.RemovePedal(0)
+	require.Equal(t, 0, len(pedalboard.pedals))
+	// TODO: also check if the input/output connections were change successfully
+}
+
+func TestRemovePedalFromInvalidIndex(t *testing.T) {
+	pedalboard := NewPedalBoard().(*pedalBoard)
+
+
+	result := pedalboard.RemovePedal(-1)
+
+	require.Equal(t, errors.New("Index out of bounds"), result)
+
+	result = pedalboard.RemovePedal(1000)
+	require.Equal(t, errors.New("Index out of bounds"), result)
 }

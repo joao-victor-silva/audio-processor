@@ -9,6 +9,7 @@ type connectedPedal struct {
 
 type PedalBoard interface{
 	AddPedal(pedal Pedal, index int) error
+	RemovePedal(index int) error
 	Toggle(index int) error
 	InputConnect(wire Wire)
 	OutputConnect(wire Wire)
@@ -64,6 +65,41 @@ func (p *pedalBoard) AddPedal(pedal Pedal, index int) error {
 	connectedPedal := connectedPedal{Pedal: pedal, ShouldRun: &shouldRun}
 	p.pedals[index] = &connectedPedal
 	go pedal.Run(connectedPedal.ShouldRun)
+
+	return nil
+}
+
+
+func (p *pedalBoard) RemovePedal(index int) error {
+	var input Jack
+	var output Jack
+
+	if (index > len(p.pedals) || index < 0) {
+		return errors.New("Index out of bounds")
+	}
+
+	*p.pedals[index].ShouldRun = false
+
+	if (index == 0) {
+		input = p.input
+	} else {
+		input = p.pedals[index-1].Pedal.GetOutputJack()[0]
+	}
+
+	if (index == len(p.pedals)) {
+		output = p.output
+	} else {
+		output = p.pedals[index].Pedal.GetInputJack()[0]
+	}
+
+	wire := make(Wire, 1024)
+
+	output.Connect(wire)
+	input.Connect(wire)
+	
+	// shift left pedals
+	copy(p.pedals[index:], p.pedals[index+1:])
+	p.pedals = p.pedals[:len(p.pedals) - 1]
 
 	return nil
 }
