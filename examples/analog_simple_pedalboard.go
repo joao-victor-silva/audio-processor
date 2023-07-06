@@ -1,10 +1,7 @@
 package main
 
 import (
-	"encoding/binary"
-	"math"
 	"os"
-	_ "os"
 	"os/signal"
 
 	"github.com/joao-victor-silva/audio-processor/analog"
@@ -46,22 +43,10 @@ func main() {
 	pedalBoard.AddPedal(recordPedal, 0)
 
 	micOutput := analog.NewOutputJack()
-	go func(device audio.AudioDevice, jack analog.OutputJack) {
-		for {
-			data := device.ReadData()
-			jack.SendSignal(&data)
-		}
-	}(mic, micOutput)
+	go analog.ReadFromAudioDevice(mic, micOutput)
 
 	headphoneInput := analog.NewInputJack()
-	go func(device audio.AudioDevice, jack analog.InputJack) {
-		for {
-			signal := jack.ReceiveSignal()
-			device.WriteData(audio.Sample{Value: math.Float32frombits(
-				binary.LittleEndian.Uint32(signal.ToBytes()),
-			)})
-		}
-	}(headphone, headphoneInput)
+	go analog.WriteInAudioDevice(headphone, headphoneInput)
 
 	pedalBoard.InputConnect(micOutput.GetWire())
 	pedalBoard.OutputConnect(headphoneInput.GetWire())
