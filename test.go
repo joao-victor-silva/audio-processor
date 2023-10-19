@@ -1,10 +1,12 @@
 package main
 
 import (
-	"os"
 	"encoding/binary"
 	"fmt"
 	"math"
+	"os"
+
+	"github.com/joao-victor-silva/audio-processor/audio"
 	_ "github.com/joao-victor-silva/audio-processor/audio"
 	_ "github.com/joao-victor-silva/audio-processor/effect"
 )
@@ -38,27 +40,27 @@ func (c *customAudioDevice) AudioFormat() uint {
 }
 func (c *customAudioDevice) TogglePause() {}
 
-func (c *customAudioDevice) ReadData() float32 {
+func (c *customAudioDevice) ReadData() audio.Sample {
 	c.sampleCount = c.sampleCount + 1
 	if (c.sampleCount >= 44100) {
 		c.Close()
 	}
 	rad := (float64(c.sampleCount) * math.Pi) / 100.0
 	// return (float32(math.Sin(rad)) * 0.5) + 0.5
-	return float32(math.Sin(rad))
+	return audio.Sample{Value: float32(math.Sin(rad)), Volume: float64(1.0)}
 }
 
 func (c *customAudioDevice) ReadDataUnsafe() float32 {
 	return 0.0
 }
 
-func (c *customAudioDevice) WriteData(data float32) {
+func (c *customAudioDevice) WriteData(data audio.Sample) {
 	if (!c.channelIsOpen) {
 		return
 	}
 
 	binaryData := make([]byte, 4)
-	binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data))
+	binary.LittleEndian.PutUint32(binaryData, math.Float32bits(data.Value))
 	c.file.Write(binaryData)
 }
 
