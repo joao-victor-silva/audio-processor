@@ -22,7 +22,7 @@ func main() {
 	defer mic.Close()
 	mic.Unpause()
 
-	headphone, err := sdlManager.NewAudioDevice(0, false)
+	headphone, err := sdlManager.NewAudioDevice(1, false)
 	if err != nil {
 		panic("Counldn't open the headphone device" + err.Error())
 	}
@@ -51,7 +51,7 @@ func main() {
 	pedalBoard.InputConnect(micOutput.GetWire())
 	pedalBoard.OutputConnect(headphoneInput.GetWire())
 
-	// recordPedal.Toggle()
+	recordPedal.Toggle()
 
 	mainThreadSignals := make(chan os.Signal, 1)
 	signal.Notify(mainThreadSignals, os.Interrupt)
