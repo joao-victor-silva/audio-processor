@@ -42,6 +42,10 @@ func main() {
 	recordPedal := analog.NewPedal(recordEffect)
 	pedalBoard.AddPedal(recordPedal, 0)
 
+	volumeEffect := analog.VolumeEffect{}
+	volumePedal := analog.NewPedal(&volumeEffect)
+	pedalBoard.AddPedal(volumePedal, 1)
+
 	micOutput := analog.NewOutputJack()
 	go analog.ReadFromAudioDevice(mic, micOutput)
 
@@ -52,6 +56,7 @@ func main() {
 	pedalBoard.OutputConnect(headphoneInput.GetWire())
 
 	recordPedal.Toggle()
+	volumePedal.Toggle()
 
 	mainThreadSignals := make(chan os.Signal, 1)
 	signal.Notify(mainThreadSignals, os.Interrupt)
