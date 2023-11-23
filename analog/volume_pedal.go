@@ -2,6 +2,7 @@ package analog
 
 import (
 	"fmt"
+	"math"
 	"math/cmplx"
 
 	"github.com/joao-victor-silva/audio-processor/audio"
@@ -36,3 +37,35 @@ func (e *VolumeEffect) Process(signals []Signal) []Signal {
 
 	return signals
 }
+
+
+// Loudness
+// Input -> i0
+// Normalize i0 amplitude using K-filter or A-weighting (avoid different loudness perception by frequency)
+// Mean square of normalized frequencies
+// Lk = 10 * log10( mean square )
+
+func Loudness(samples []complex128) float64 {
+	// normalize samples amplitudes
+	// Nomalize()
+
+	lk := 10 * math.Log10(MeanSquare(make([]float64, 10)))
+
+	return lk
+}
+
+
+func Normalize(samples []complex128) {
+
+}
+
+func MeanSquare(data []float64) float64 {
+	mean := float64(0.0)
+	length := len(data)
+	for _, value := range data {
+		mean += value / float64(length)
+	}
+	return mean
+}
+
+
